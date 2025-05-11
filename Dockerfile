@@ -1,26 +1,45 @@
-FROM node:18-alpine
+# Use Node.js 18 as base image
+FROM node:18-slim
 
-# Install Chrome and dependencies
-RUN apk update && apk add --no-cache \
-    chromium \
-    chromium-chromedriver \
-    nss \
-    freetype \
-    freetype-dev \
-    harfbuzz \
+# Install Chromium and Firefox dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
     ca-certificates \
-    ttf-freefont \
-    udev \
-    ttf-opensans \
-    firefox \
-    dbus \
-    eudev \
-    xvfb
+    procps \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxrandr2 \
+    xdg-utils \
+    chromium \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set Chrome environment variables
-ENV CHROME_BIN=/usr/bin/chromium-browser
+# Install Firefox
+RUN apt-get update && apt-get install -y \
+    firefox-esr \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Chrome binary path for WebdriverIO
+ENV CHROME_BIN=/usr/bin/chromium
 ENV CHROME_PATH=/usr/lib/chromium/
 
+# Create app directory
 WORKDIR /app
 
 # Copy package files
@@ -29,11 +48,17 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
-# Copy application code
+# Copy source code
 COPY . .
 
-# Build the TypeScript code
+# Build TypeScript code
 RUN npm run build
 
-# Start the MCP server
-CMD ["node", "dist/lib/server.js"]
+# Expose port if needed (for future use)
+# EXPOSE 4444
+
+# Set environment variables
+ENV NODE_ENV=production
+
+# Command to run the server
+CMD ["npm", "start"]
