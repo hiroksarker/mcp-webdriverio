@@ -1,0 +1,584 @@
+#!/usr/bin/env node
+
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+import { remote } from 'webdriverio';
+import fs from 'fs/promises';
+import type { Options } from '@wdio/types';
+
+// Create an MCP server
+const server = new McpServer({
+    name: "MCP WebdriverIO",
+    version: "1.0.0"
+});
+
+// Define types for state management
+interface SessionInfo {
+    browser: Awaited<ReturnType<typeof remote>>;
+    id: string;
+}
+
+// Server state
+const state: {
+    drivers: Map<string, SessionInfo>;
+    currentSession: string | null;
+} = {
+    drivers: new Map<string, SessionInfo>(),
+    currentSession: null
+};
+
+// Helper functions
+const getDriver = (): SessionInfo => {
+    if (!state.currentSession) {
+        throw new Error('No active browser session');
+    }
+    
+    const driver = state.drivers.get(state.currentSession);
+    if (!driver) {
+        throw new Error('No active browser session found');
+    }
+    
+    return driver;
+};
+
+// Locator strategies
+type LocatorStrategy = 'id' | 'css' | 'xpath' | 'name' | 'tag' | 'class';
+
+const getSelector = (by: LocatorStrategy, value: string): string => {
+    switch (by.toLowerCase() as LocatorStrategy) {
+        case 'id': return `#${value}`;
+        case 'css': return value;
+        case 'xpath': return value; // WebdriverIO supports XPath directly
+        case 'name': return `[name="${value}"]`;
+        case 'tag': return value;
+        case 'class': return `.${value}`;
+        default: throw new Error(`Unsupported locator strategy: ${by}`);
+    }
+};
+
+// Common schemas
+const browserOptionsSchema = z.object({
+    headless: z.boolean().optional().describe("Run browser in headless mode"),
+    arguments: z.array(z.string()).optional().describe("Additional browser arguments")
+}).optional();
+
+const locatorSchema = {
+    by: z.enum(["id", "css", "xpath", "name", "tag", "class"]).describe("Locator strategy to find element"),
+    value: z.string().describe("Value for the locator strategy"),
+    timeout: z.number().optional().describe("Maximum time to wait for element in milliseconds")
+};
+
+// Browser Management Tools
+server.tool(
+    "start_browser",
+    "launches browser",
+    {
+        browser: z.enum(["chrome", "firefox"]).describe("Browser to launch (chrome or firefox)"),
+        options: browserOptionsSchema
+    },
+    async ({ browser, options = {} }) => {
+        try {
+            const browserOptions: Options.WebdriverIO = {
+                logLevel: 'error',
+                capabilities: {}
+            };
+
+            // Configure browser options
+            if (browser === 'chrome') {
+                browserOptions.capabilities = {
+                    browserName: 'chrome',
+                    'goog:chromeOptions': {
+                        args: []
+                    }
+                };
+                
+                if (options.headless) {
+                    (browserOptions.capabilities['goog:chromeOptions'] as any).args.push('--headless=new');
+                }
+                
+                if (options.arguments) {
+                    (browserOptions.capabilities['goog:chromeOptions'] as any).args.push(...options.arguments);
+                }
+            } else {
+                browserOptions.capabilities = {
+                    browserName: 'firefox',
+                    'moz:firefoxOptions': {
+                        args: []
+                    }
+                };
+                
+                if (options.headless) {
+                    (browserOptions.capabilities['moz:firefoxOptions'] as any).args.push('--headless');
+                }
+                
+                if (options.arguments) {
+                    (browserOptions.capabilities['moz:firefoxOptions'] as any).args.push(...options.arguments);
+                }
+            }
+
+            const driver = await remote(browserOptions);
+            const sessionId = `${browser}_${Date.now()}`;
+            
+            state.drivers.set(sessionId, {
+                browser: driver,
+                id: sessionId
+            });
+            
+            state.currentSession = sessionId;
+
+            return {
+                content: [{ type: 'text', text: `Browser started with session_id: ${sessionId}` }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error starting browser: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "navigate",
+    "navigates to a URL",
+    {
+        url: z.string().describe("URL to navigate to")
+    },
+    async ({ url }) => {
+        try {
+            const { browser } = getDriver();
+            await browser.url(url);
+            return {
+                content: [{ type: 'text', text: `Navigated to ${url}` }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error navigating: ${e.message}` }]
+            };
+        }
+    }
+);
+
+// Element Interaction Tools
+server.tool(
+    "find_element",
+    "finds an element",
+    {
+        ...locatorSchema
+    },
+    async ({ by, value, timeout = 10000 }) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by as LocatorStrategy, value);
+            
+            // For XPath selectors, use the $ with xpath= prefix
+            const element = by === 'xpath' 
+                ? await browser.$(`xpath=${value}`)
+                : await browser.$(selector);
+                
+            await element.waitForExist({ timeout });
+            
+            return {
+                content: [{ type: 'text', text: 'Element found' }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error finding element: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "click_element",
+    "clicks an element",
+    {
+        ...locatorSchema
+    },
+    async ({ by, value, timeout = 10000 }) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by as LocatorStrategy, value);
+            
+            // For XPath selectors, use the $ with xpath= prefix
+            const element = by === 'xpath' 
+                ? await browser.$(`xpath=${value}`)
+                : await browser.$(selector);
+                
+            await element.waitForClickable({ timeout });
+            await element.click();
+            
+            return {
+                content: [{ type: 'text', text: 'Element clicked' }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error clicking element: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "send_keys",
+    "sends keys to an element, aka typing",
+    {
+        ...locatorSchema,
+        text: z.string().describe("Text to enter into the element")
+    },
+    async ({ by, value, text, timeout = 10000 }) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by as LocatorStrategy, value);
+            
+            // For XPath selectors, use the $ with xpath= prefix
+            const element = by === 'xpath' 
+                ? await browser.$(`xpath=${value}`)
+                : await browser.$(selector);
+                
+            await element.waitForExist({ timeout });
+            await element.clearValue();
+            await element.setValue(text);
+            
+            return {
+                content: [{ type: 'text', text: `Text "${text}" entered into element` }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error entering text: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "get_element_text",
+    "gets the text() of an element",
+    {
+        ...locatorSchema
+    },
+    async ({ by, value, timeout = 10000 }) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by as LocatorStrategy, value);
+            
+            // For XPath selectors, use the $ with xpath= prefix
+            const element = by === 'xpath' 
+                ? await browser.$(`xpath=${value}`)
+                : await browser.$(selector);
+                
+            await element.waitForExist({ timeout });
+            const text = await element.getText();
+            
+            return {
+                content: [{ type: 'text', text }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error getting element text: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "hover",
+    "moves the mouse to hover over an element",
+    {
+        ...locatorSchema
+    },
+    async ({ by, value, timeout = 10000 }) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by as LocatorStrategy, value);
+            
+            // For XPath selectors, use the $ with xpath= prefix
+            const element = by === 'xpath' 
+                ? await browser.$(`xpath=${value}`)
+                : await browser.$(selector);
+                
+            await element.waitForExist({ timeout });
+            await element.moveTo();
+            
+            return {
+                content: [{ type: 'text', text: 'Hovered over element' }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error hovering over element: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "drag_and_drop",
+    "drags an element and drops it onto another element",
+    {
+        ...locatorSchema,
+        targetBy: z.enum(["id", "css", "xpath", "name", "tag", "class"]).describe("Locator strategy to find target element"),
+        targetValue: z.string().describe("Value for the target locator strategy")
+    },
+    async ({ by, value, targetBy, targetValue, timeout = 10000 }) => {
+        try {
+            const { browser } = getDriver();
+            const sourceSelector = getSelector(by as LocatorStrategy, value);
+            const targetSelector = getSelector(targetBy as LocatorStrategy, targetValue);
+            
+            // For XPath selectors, use the $ with xpath= prefix
+            const sourceElement = by === 'xpath' 
+                ? await browser.$(`xpath=${value}`)
+                : await browser.$(sourceSelector);
+                
+            const targetElement = targetBy === 'xpath' 
+                ? await browser.$(`xpath=${targetValue}`)
+                : await browser.$(targetSelector);
+            
+            await sourceElement.waitForExist({ timeout });
+            await targetElement.waitForExist({ timeout });
+            
+            await sourceElement.dragAndDrop(targetElement);
+            
+            return {
+                content: [{ type: 'text', text: 'Drag and drop completed' }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error performing drag and drop: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "double_click",
+    "performs a double click on an element",
+    {
+        ...locatorSchema
+    },
+    async ({ by, value, timeout = 10000 }) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by as LocatorStrategy, value);
+            
+            // For XPath selectors, use the $ with xpath= prefix
+            const element = by === 'xpath' 
+                ? await browser.$(`xpath=${value}`)
+                : await browser.$(selector);
+                
+            await element.waitForExist({ timeout });
+            await element.doubleClick();
+            
+            return {
+                content: [{ type: 'text', text: 'Double click performed' }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error performing double click: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "right_click",
+    "performs a right click (context click) on an element",
+    {
+        ...locatorSchema
+    },
+    async ({ by, value, timeout = 10000 }) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by as LocatorStrategy, value);
+            
+            // For XPath selectors, use the $ with xpath= prefix
+            const element = by === 'xpath' 
+                ? await browser.$(`xpath=${value}`)
+                : await browser.$(selector);
+                
+            await element.waitForExist({ timeout });
+            await element.click({ button: 'right' });
+            
+            return {
+                content: [{ type: 'text', text: 'Right click performed' }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error performing right click: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "press_key",
+    "simulates pressing a keyboard key",
+    {
+        key: z.string().describe("Key to press (e.g., 'Enter', 'Tab', 'a', etc.)")
+    },
+    async ({ key }) => {
+        try {
+            const { browser } = getDriver();
+            
+            // Handle special keys (Enter, Tab, etc.)
+            const keyMap: Record<string, string> = {
+                'Enter': 'Enter',
+                'Tab': 'Tab',
+                'Escape': 'Escape',
+                'Esc': 'Escape',
+                'ArrowUp': 'ArrowUp',
+                'ArrowDown': 'ArrowDown',
+                'ArrowLeft': 'ArrowLeft',
+                'ArrowRight': 'ArrowRight',
+                'Backspace': 'Backspace',
+                'Delete': 'Delete',
+                'Home': 'Home',
+                'End': 'End'
+            };
+            
+            // Convert key to the format WebdriverIO expects
+            const wdioKey = keyMap[key] || key;
+            
+            // Press the key
+            await browser.keys(wdioKey);
+            
+            return {
+                content: [{ type: 'text', text: `Key '${key}' pressed` }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error pressing key: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "upload_file",
+    "uploads a file using a file input element",
+    {
+        ...locatorSchema,
+        filePath: z.string().describe("Absolute path to the file to upload")
+    },
+    async ({ by, value, filePath, timeout = 10000 }) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by as LocatorStrategy, value);
+            
+            // For XPath selectors, use the $ with xpath= prefix
+            const element = by === 'xpath' 
+                ? await browser.$(`xpath=${value}`)
+                : await browser.$(selector);
+                
+            await element.waitForExist({ timeout });
+            
+            // WebdriverIO has a setValue method that works for file inputs
+            await element.setValue(filePath);
+            
+            return {
+                content: [{ type: 'text', text: 'File upload initiated' }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error uploading file: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "take_screenshot",
+    "captures a screenshot of the current page",
+    {
+        outputPath: z.string().optional().describe("Optional path where to save the screenshot. If not provided, returns base64 data.")
+    },
+    async ({ outputPath }) => {
+        try {
+            const { browser } = getDriver();
+            const screenshot = await browser.takeScreenshot();
+            
+            if (outputPath) {
+                await fs.writeFile(outputPath, Buffer.from(screenshot, 'base64'));
+                return {
+                    content: [{ type: 'text', text: `Screenshot saved to ${outputPath}` }]
+                };
+            } else {
+                return {
+                    content: [
+                        { type: 'text', text: 'Screenshot captured as base64:' },
+                        { type: 'text', text: screenshot }
+                    ]
+                };
+            }
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error taking screenshot: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "close_session",
+    "closes the current browser session",
+    {},
+    async () => {
+        try {
+            if (!state.currentSession) {
+                return {
+                    content: [{ type: 'text', text: 'No active browser session to close' }]
+                };
+            }
+            
+            const { browser, id } = getDriver();
+            await browser.deleteSession();
+            
+            state.drivers.delete(state.currentSession);
+            const sessionId = state.currentSession;
+            state.currentSession = null;
+            
+            return {
+                content: [{ type: 'text', text: `Browser session ${sessionId} closed` }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error closing session: ${e.message}` }]
+            };
+        }
+    }
+);
+
+// Resources
+server.resource(
+    "browser-status",
+    new ResourceTemplate("browser-status://current", { list: undefined }),
+    async (uri) => ({
+        contents: [{
+            uri: uri.href,
+            text: state.currentSession 
+                ? `Active browser session: ${state.currentSession}`
+                : "No active browser session"
+        }]
+    })
+);
+
+// Cleanup handler
+async function cleanup() {
+    for (const [sessionId, { browser }] of state.drivers) {
+        try {
+            await browser.deleteSession();
+        } catch (e) {
+            console.error(`Error closing browser session ${sessionId}:`, e);
+        }
+    }
+    state.drivers.clear();
+    state.currentSession = null;
+    process.exit(0);
+}
+
+process.on('SIGTERM', cleanup);
+process.on('SIGINT', cleanup);
+
+// Start the server
+const transport = new StdioServerTransport();
+await server.connect(transport);

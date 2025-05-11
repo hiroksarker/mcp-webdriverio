@@ -1,0 +1,33 @@
+# Source files
+src/
+
+# TypeScript config
+tsconfig.json
+
+# Development configs
+.eslintrc
+.prettierrc
+
+# Docker files
+Dockerfile
+.dockerignore
+
+# Git files
+.git/
+.gitignore
+
+# Test directory
+test/
+
+# CI/CD
+.github/
+
+# Editor directories
+.vscode/
+.idea/
+
+# Documentation
+docs/
+
+# Examples that aren't needed in the package
+examples/

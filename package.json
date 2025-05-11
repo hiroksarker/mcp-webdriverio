@@ -1,0 +1,43 @@
+{
+  "name": "@hiroksarker/mcp-webdriverio",
+  "version": "0.1.0",
+  "description": "WebdriverIO MCP Server",
+  "type": "module",
+  "main": "dist/lib/server.js",
+  "bin": {
+    "mcp-webdriverio": "./dist/bin/mcp-webdriverio.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/lib/server.js",
+    "dev": "tsc -w",
+    "prepublishOnly": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "webdriverio",
+    "automation",
+    "testing",
+    "browser",
+    "selenium"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.7.0",
+    "@wdio/cli": "^8.26.2",
+    "@wdio/globals": "^9.12.7",
+    "@wdio/local-runner": "^8.26.2",
+    "@wdio/utils": "^8.26.2",
+    "webdriverio": "^8.26.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.3",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
