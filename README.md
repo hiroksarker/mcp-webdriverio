@@ -1,6 +1,18 @@
-# MCP WebdriverIO Server
+# MCP WebdriverIO
 
-A Model Context Protocol (MCP) server implementation for WebdriverIO, enabling browser automation through standardized MCP clients.
+A Model Context Protocol (MCP) server implementation for WebdriverIO, enabling AI models to interact with web browsers through natural language commands.
+
+## Overview
+
+This package provides a bridge between AI models and WebdriverIO, allowing AI assistants to control web browsers using natural language. It implements the Model Context Protocol (MCP) to enable AI models to perform web automation tasks like:
+
+- Navigating to URLs
+- Clicking elements
+- Typing text
+- Getting element attributes
+- Drag and drop operations
+- File uploads
+- And more...
 
 ## Features
 
@@ -14,420 +26,120 @@ A Model Context Protocol (MCP) server implementation for WebdriverIO, enabling b
 - Upload files
 - Support for headless mode
 
-## Supported Browsers
+## Requirements
 
-- Chrome
-- Firefox
+- Node.js >= 18
+- A modern web browser (Chrome, Firefox, Safari, etc.)
 
-## Use with Goose
+## Installation
 
-### Option 1: One-click install
-Copy and paste the link below into a browser address bar to add this extension to goose desktop:
-
-```
-goose://extension?cmd=npx&arg=-y&arg=%40hiroksarker%2Fmcp-webdriverio&id=webdriverio-mcp&name=WebdriverIO%20MCP&description=automates%20browser%20interactions
+### Option 1: Using npm
+```bash
+npm install mcp-webdriverio
 ```
 
-### Option 2: Add manually to desktop or CLI
+### Option 2: Using npx
+```bash
+npx -y mcp-webdriverio
+```
 
-* Name: `WebdriverIO MCP`
-* Description: `automates browser interactions`
-* Command: `npx -y @hrioksarker/mcp-webdriverio`
+### Option 3: Global Installation
+```bash
+npm install -g mcp-webdriverio
+```
 
-## Use with other MCP clients (e.g. Claude Desktop, etc)
+## Usage
+
+### Basic Setup
+
+1. Create a configuration file (e.g., `mcp-config.json`):
 ```json
 {
-  "mcpServers": {
-    "webdriverio": {
-      "command": "npx",
-      "args": ["-y", "@hiroksarker/mcp-webdriverio"]
+  "browser": {
+    "capabilities": {
+      "browserName": "chrome"
     }
   }
 }
 ```
 
----
-
-## Development
-
-To work on this project:
-
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Build the TypeScript code: `npm run build`
-4. Run the server: `npm start`
-
-For development with automatic recompilation:
-```bash
-npm run dev
-```
-
-### Installation
-
-#### Manual Installation
-```bash
-npm install -g @hiroksarker/mcp-webdriverio
-```
-
-### Usage
-
-Start the server by running:
-
+2. Start the MCP server:
 ```bash
 mcp-webdriverio
 ```
 
-Or use with NPX in your MCP configuration:
+### Use with MCP Clients
 
+#### Goose Desktop
+Copy and paste this link into your browser to add the extension to Goose desktop:
+```
+goose://extension?cmd=npx&arg=-y&arg=mcp-webdriverio&id=webdriverio-mcp&name=WebdriverIO%20MCP&description=automates%20browser%20interactions
+```
+
+#### Other MCP Clients (e.g., Claude Desktop)
+Add to your MCP configuration:
 ```json
 {
   "mcpServers": {
     "webdriverio": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@hiroksarker/mcp-webdriverio"
-      ]
+      "args": ["-y", "mcp-webdriverio"]
     }
   }
 }
 ```
 
-## Tools
+## Development
 
-### start_browser
-Launches a browser session.
-
-**Parameters:**
-- `browser` (required): Browser to launch
-  - Type: string
-  - Enum: ["chrome", "firefox"]
-- `options`: Browser configuration options
-  - Type: object
-  - Properties:
-    - `headless`: Run browser in headless mode
-      - Type: boolean
-    - `arguments`: Additional browser arguments
-      - Type: array of strings
-
-**Example:**
-```json
-{
-  "tool": "start_browser",
-  "parameters": {
-    "browser": "chrome",
-    "options": {
-      "headless": true,
-      "arguments": ["--no-sandbox"]
-    }
-  }
-}
+1. Clone the repository:
+```bash
+git clone https://github.com/hiroksarker/mcp-webdriverio.git
+cd mcp-webdriverio
 ```
 
-### navigate
-Navigates to a URL.
-
-**Parameters:**
-- `url` (required): URL to navigate to
-  - Type: string
-
-**Example:**
-```json
-{
-  "tool": "navigate",
-  "parameters": {
-    "url": "https://www.example.com"
-  }
-}
+2. Install dependencies:
+```bash
+npm install
 ```
 
-### find_element
-Finds an element on the page.
-
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "find_element",
-  "parameters": {
-    "by": "id",
-    "value": "search-input",
-    "timeout": 5000
-  }
-}
+3. Build the project:
+```bash
+npm run build
 ```
 
-### click_element
-Clicks an element.
-
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "click_element",
-  "parameters": {
-    "by": "css",
-    "value": ".submit-button"
-  }
-}
+4. Start in development mode:
+```bash
+npm run dev
 ```
 
-### send_keys
-Sends keys to an element (typing).
+## Project Structure
 
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `text` (required): Text to enter into the element
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "send_keys",
-  "parameters": {
-    "by": "name",
-    "value": "username",
-    "text": "testuser"
-  }
-}
+```
+mcp-webdriverio/
+├── dist/               # Compiled JavaScript files
+├── src/
+│   ├── bin/           # CLI entry point
+│   ├── lib/           # Core library code
+│   │   ├── server.ts  # MCP server implementation
+│   │   └── driver.ts  # WebdriverIO driver setup
+│   └── types/         # TypeScript type definitions
+├── package.json
+└── tsconfig.json
 ```
 
-### get_element_text
-Gets the text() of an element.
+## Available Tools
 
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "get_element_text",
-  "parameters": {
-    "by": "css",
-    "value": ".message"
-  }
-}
-```
-
-### hover
-Moves the mouse to hover over an element.
-
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "hover",
-  "parameters": {
-    "by": "css",
-    "value": ".dropdown-menu"
-  }
-}
-```
-
-### drag_and_drop
-Drags an element and drops it onto another element.
-
-**Parameters:**
-- `by` (required): Locator strategy for source element
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the source locator strategy
-  - Type: string
-- `targetBy` (required): Locator strategy for target element
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `targetValue` (required): Value for the target locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for elements in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "drag_and_drop",
-  "parameters": {
-    "by": "id",
-    "value": "draggable",
-    "targetBy": "id",
-    "targetValue": "droppable"
-  }
-}
-```
-
-### double_click
-Performs a double click on an element.
-
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "double_click",
-  "parameters": {
-    "by": "css",
-    "value": ".editable-text"
-  }
-}
-```
-
-### right_click
-Performs a right click (context click) on an element.
-
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "right_click",
-  "parameters": {
-    "by": "css",
-    "value": ".context-menu-trigger"
-  }
-}
-```
-
-### press_key
-Simulates pressing a keyboard key.
-
-**Parameters:**
-- `key` (required): Key to press (e.g., 'Enter', 'Tab', 'a', etc.)
-  - Type: string
-
-**Example:**
-```json
-{
-  "tool": "press_key",
-  "parameters": {
-    "key": "Enter"
-  }
-}
-```
-
-### upload_file
-Uploads a file using a file input element.
-
-**Parameters:**
-- `by` (required): Locator strategy
-  - Type: string
-  - Enum: ["id", "css", "xpath", "name", "tag", "class"]
-- `value` (required): Value for the locator strategy
-  - Type: string
-- `filePath` (required): Absolute path to the file to upload
-  - Type: string
-- `timeout`: Maximum time to wait for element in milliseconds
-  - Type: number
-  - Default: 10000
-
-**Example:**
-```json
-{
-  "tool": "upload_file",
-  "parameters": {
-    "by": "id",
-    "value": "file-input",
-    "filePath": "/path/to/file.pdf"
-  }
-}
-```
-
-### take_screenshot
-Captures a screenshot of the current page.
-
-**Parameters:**
-- `outputPath` (optional): Path where to save the screenshot. If not provided, returns base64 data.
-  - Type: string
-
-**Example:**
-```json
-{
-  "tool": "take_screenshot",
-  "parameters": {
-    "outputPath": "/path/to/screenshot.png"
-  }
-}
-```
-
-### close_session
-Closes the current browser session and cleans up resources.
-
-**Parameters:**
-None required
-
-**Example:**
-```json
-{
-  "tool": "close_session",
-  "parameters": {}
-}
-```
+[Detailed tool documentation moved to TOOLS.md]
 
 ## Advantages of WebdriverIO vs Selenium WebDriver
 
-- **Modern JavaScript/TypeScript Support**: Built with modern JavaScript in mind, with full TypeScript support.
-- **Simplified API**: WebdriverIO offers a more concise and intuitive API compared to Selenium WebDriver.
-- **Automatic Waiting**: Many commands in WebdriverIO have built-in waits, making tests more stable without extra code.
-- **Better Async/Await Support**: Designed from the ground up to work well with JavaScript's async/await pattern.
-- **Improved Error Messages**: WebdriverIO typically provides more descriptive error messages to help with debugging.
-- **Integrated Testing Framework**: Can be integrated with test runners like Mocha, Jasmine, or Jest.
-- **Community and Plugins**: Strong community with a range of plugins and extensions.
+- **Modern JavaScript/TypeScript Support**: Built with modern JavaScript in mind, with full TypeScript support
+- **Simplified API**: More concise and intuitive API compared to Selenium WebDriver
+- **Automatic Waiting**: Built-in waits for better test stability
+- **Better Async/Await Support**: Designed for modern JavaScript patterns
+- **Improved Error Messages**: More descriptive error messages for debugging
+- **Integrated Testing Framework**: Works with Mocha, Jasmine, or Jest
+- **Community and Plugins**: Strong community with many plugins
 
 ## Implementation Differences
 
@@ -440,6 +152,22 @@ None required
 | Handling Dropdowns | Requires the Select class | Direct element interaction |
 | Taking Screenshots | `driver.takeScreenshot()` | `browser.takeScreenshot()` |
 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
 ## License
 
-MIT
+MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Keywords
+
+- mcp
+- webdriverio
+- automation
+- testing
+- browser
+- selenium
+- ai
+- natural language
+- browser automation
