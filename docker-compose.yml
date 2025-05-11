@@ -1,21 +1,19 @@
-version: '3.8'
-
 services:
   mcp-webdriverio:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mcp-webdriverio
+    container_name: mcp-webdriverio-server
     volumes:
-      # Mount for screenshots
       - ./screenshots:/app/screenshots
-      # Mount for uploaded files
       - ./uploads:/app/uploads
     environment:
       - NODE_ENV=production
-      # Add any additional environment variables here
-    # Uncomment if you need to expose ports in the future
+    # Uncomment if you need to expose a port
     # ports:
     #   - "4444:4444"
-    # Add any additional configuration as needed
+    # Add any additional environment variables here
+    # environment:
+    #   - WDIO_LOG_LEVEL=info
+    #   - WDIO_MAX_INSTANCES=5
     restart: unless-stopped 

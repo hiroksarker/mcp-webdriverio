@@ -1,12 +1,29 @@
-# Use Node.js 18 as base image
+# Build stage
+FROM node:18-slim AS builder
+
+# Set working directory
+WORKDIR /build
+
+# Copy package files first to leverage Docker cache
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Build TypeScript code
+RUN npm run build
+
+# Production stage
 FROM node:18-slim
 
-# Install Chromium and Firefox dependencies
-RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg \
+# Install only necessary runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    firefox-esr \
     ca-certificates \
-    procps \
     fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \
@@ -27,13 +44,8 @@ RUN apt-get update && apt-get install -y \
     libxfixes3 \
     libxrandr2 \
     xdg-utils \
-    chromium \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Firefox
-RUN apt-get update && apt-get install -y \
-    firefox-esr \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Set Chrome binary path for WebdriverIO
 ENV CHROME_BIN=/usr/bin/chromium
@@ -42,23 +54,23 @@ ENV CHROME_PATH=/usr/lib/chromium/
 # Create app directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy only necessary files from builder
+COPY --from=builder /build/dist ./dist
+COPY --from=builder /build/package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install only production dependencies
+RUN npm ci --only=production \
+    && npm cache clean --force
 
-# Copy source code
-COPY . .
+# Create directories for screenshots and uploads
+RUN mkdir -p /app/screenshots /app/uploads \
+    && chown -R node:node /app
 
-# Build TypeScript code
-RUN npm run build
-
-# Expose port if needed (for future use)
-# EXPOSE 4444
+# Switch to non-root user for security
+USER node
 
 # Set environment variables
 ENV NODE_ENV=production
 
 # Command to run the server
-CMD ["npm", "start"]
+CMD ["node", "dist/lib/server.js"]
