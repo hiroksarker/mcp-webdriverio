@@ -1,16 +1,22 @@
 {
     "compilerOptions": {
       "target": "ES2020",
-      "module": "NodeNext",
-      "moduleResolution": "NodeNext",
-      "esModuleInterop": true,
+      "module": "commonjs",
+      "lib": ["ES2020", "DOM"],
       "declaration": true,
       "outDir": "./dist",
       "rootDir": "./src",
       "strict": true,
+      "esModuleInterop": true,
       "skipLibCheck": true,
       "forceConsistentCasingInFileNames": true,
-      "resolveJsonModule": true
+      "moduleResolution": "node",
+      "resolveJsonModule": true,
+      "types": ["node", "jest", "@wdio/globals/types"],
+      "baseUrl": ".",
+      "paths": {
+        "*": ["node_modules/*"]
+      }
     },
     "include": ["src/**/*"],
     "exclude": ["node_modules", "dist"]
