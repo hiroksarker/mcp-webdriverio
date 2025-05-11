@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 
-import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { MCPServer } from '@modelcontextprotocol/sdk';
+import { ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { remote } from 'webdriverio';
 import fs from 'fs/promises';
 import type { Options } from '@wdio/types';
+import { startWebdriverIO } from './mc-webdriverio.js';
 
 // Create an MCP server
-const server = new McpServer({
+const server = new MCPServer({
     name: "MCP WebdriverIO",
     version: "1.0.0"
 });
@@ -17,6 +19,11 @@ const server = new McpServer({
 interface SessionInfo {
     browser: Awaited<ReturnType<typeof remote>>;
     id: string;
+}
+
+interface BrowserOptions {
+    headless?: boolean;
+    arguments?: string[];
 }
 
 // Server state
@@ -49,7 +56,7 @@ const getSelector = (by: LocatorStrategy, value: string): string => {
     switch (by.toLowerCase() as LocatorStrategy) {
         case 'id': return `#${value}`;
         case 'css': return value;
-        case 'xpath': return value; // WebdriverIO supports XPath directly
+        case 'xpath': return value;
         case 'name': return `[name="${value}"]`;
         case 'tag': return value;
         case 'class': return `.${value}`;
@@ -69,6 +76,26 @@ const locatorSchema = {
     timeout: z.number().optional().describe("Maximum time to wait for element in milliseconds")
 };
 
+// Define common parameter types
+interface LocatorParams {
+    by: LocatorStrategy;
+    value: string;
+    timeout?: number;
+}
+
+interface LocatorWithTextParams extends LocatorParams {
+    text: string;
+}
+
+interface DragAndDropParams extends LocatorParams {
+    targetBy: LocatorStrategy;
+    targetValue: string;
+}
+
+interface FileUploadParams extends LocatorParams {
+    filePath: string;
+}
+
 // Browser Management Tools
 server.tool(
     "start_browser",
@@ -77,7 +104,7 @@ server.tool(
         browser: z.enum(["chrome", "firefox"]).describe("Browser to launch (chrome or firefox)"),
         options: browserOptionsSchema
     },
-    async ({ browser, options = {} }) => {
+    async ({ browser, options = {} }: { browser: 'chrome' | 'firefox', options?: BrowserOptions }) => {
         try {
             const browserOptions: Options.WebdriverIO = {
                 logLevel: 'error',
@@ -93,11 +120,11 @@ server.tool(
                     }
                 };
                 
-                if (options.headless) {
+                if (options?.headless) {
                     (browserOptions.capabilities['goog:chromeOptions'] as any).args.push('--headless=new');
                 }
                 
-                if (options.arguments) {
+                if (options?.arguments) {
                     (browserOptions.capabilities['goog:chromeOptions'] as any).args.push(...options.arguments);
                 }
             } else {
@@ -108,11 +135,11 @@ server.tool(
                     }
                 };
                 
-                if (options.headless) {
+                if (options?.headless) {
                     (browserOptions.capabilities['moz:firefoxOptions'] as any).args.push('--headless');
                 }
                 
-                if (options.arguments) {
+                if (options?.arguments) {
                     (browserOptions.capabilities['moz:firefoxOptions'] as any).args.push(...options.arguments);
                 }
             }
@@ -144,7 +171,7 @@ server.tool(
     {
         url: z.string().describe("URL to navigate to")
     },
-    async ({ url }) => {
+    async ({ url }: { url: string }) => {
         try {
             const { browser } = getDriver();
             await browser.url(url);
@@ -162,24 +189,16 @@ server.tool(
 // Element Interaction Tools
 server.tool(
     "find_element",
-    "finds an element",
-    {
-        ...locatorSchema
-    },
-    async ({ by, value, timeout = 10000 }) => {
+    "finds an element on the page",
+    locatorSchema,
+    async ({ by, value, timeout = 10000 }: LocatorParams) => {
         try {
             const { browser } = getDriver();
-            const selector = getSelector(by as LocatorStrategy, value);
-            
-            // For XPath selectors, use the $ with xpath= prefix
-            const element = by === 'xpath' 
-                ? await browser.$(`xpath=${value}`)
-                : await browser.$(selector);
-                
-            await element.waitForExist({ timeout });
-            
+            const selector = getSelector(by, value);
+            const element = await browser.$(selector);
+            await element.waitForDisplayed({ timeout });
             return {
-                content: [{ type: 'text', text: 'Element found' }]
+                content: [{ type: 'text', text: `Found element with ${by}: ${value}` }]
             };
         } catch (e: any) {
             return {
@@ -191,29 +210,47 @@ server.tool(
 
 server.tool(
     "click_element",
-    "clicks an element",
-    {
-        ...locatorSchema
-    },
-    async ({ by, value, timeout = 10000 }) => {
+    "clicks an element on the page",
+    locatorSchema,
+    async ({ by, value, timeout = 10000 }: LocatorParams) => {
         try {
             const { browser } = getDriver();
-            const selector = getSelector(by as LocatorStrategy, value);
-            
-            // For XPath selectors, use the $ with xpath= prefix
-            const element = by === 'xpath' 
-                ? await browser.$(`xpath=${value}`)
-                : await browser.$(selector);
-                
-            await element.waitForClickable({ timeout });
+            const selector = getSelector(by, value);
+            const element = await browser.$(selector);
+            await element.waitForDisplayed({ timeout });
             await element.click();
-            
             return {
-                content: [{ type: 'text', text: 'Element clicked' }]
+                content: [{ type: 'text', text: `Clicked element with ${by}: ${value}` }]
             };
         } catch (e: any) {
             return {
                 content: [{ type: 'text', text: `Error clicking element: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "type_text",
+    "types text into an element",
+    {
+        ...locatorSchema,
+        text: z.string().describe("Text to type into the element")
+    },
+    async (params) => {
+        const { by, value, text, timeout = 10000 } = params as { by: LocatorStrategy; value: string; text: string; timeout?: number };
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by, value);
+            const element = await browser.$(selector);
+            await element.waitForDisplayed({ timeout });
+            await element.setValue(text);
+            return {
+                content: [{ type: 'text', text: `Typed text into element with ${by}: ${value}` }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error typing text: ${e.message}` }]
             };
         }
     }
@@ -316,35 +353,29 @@ server.tool(
     "drags an element and drops it onto another element",
     {
         ...locatorSchema,
-        targetBy: z.enum(["id", "css", "xpath", "name", "tag", "class"]).describe("Locator strategy to find target element"),
-        targetValue: z.string().describe("Value for the target locator strategy")
+        targetBy: z.enum(["id", "css", "xpath", "name", "tag", "class"]).describe("Locator strategy for target element"),
+        targetValue: z.string().describe("Value for target locator strategy")
     },
-    async ({ by, value, targetBy, targetValue, timeout = 10000 }) => {
+    async (params) => {
+        const { by, value, targetBy, targetValue, timeout = 10000 } = params as { by: LocatorStrategy; value: string; targetBy: LocatorStrategy; targetValue: string; timeout?: number };
         try {
             const { browser } = getDriver();
-            const sourceSelector = getSelector(by as LocatorStrategy, value);
-            const targetSelector = getSelector(targetBy as LocatorStrategy, targetValue);
+            const sourceSelector = getSelector(by, value);
+            const targetSelector = getSelector(targetBy, targetValue);
             
-            // For XPath selectors, use the $ with xpath= prefix
-            const sourceElement = by === 'xpath' 
-                ? await browser.$(`xpath=${value}`)
-                : await browser.$(sourceSelector);
-                
-            const targetElement = targetBy === 'xpath' 
-                ? await browser.$(`xpath=${targetValue}`)
-                : await browser.$(targetSelector);
+            const sourceElement = await browser.$(sourceSelector);
+            const targetElement = await browser.$(targetSelector);
             
-            await sourceElement.waitForExist({ timeout });
-            await targetElement.waitForExist({ timeout });
+            await sourceElement.waitForDisplayed({ timeout });
+            await targetElement.waitForDisplayed({ timeout });
             
             await sourceElement.dragAndDrop(targetElement);
-            
             return {
-                content: [{ type: 'text', text: 'Drag and drop completed' }]
+                content: [{ type: 'text', text: `Dragged element ${value} to ${targetValue}` }]
             };
         } catch (e: any) {
             return {
-                content: [{ type: 'text', text: `Error performing drag and drop: ${e.message}` }]
+                content: [{ type: 'text', text: `Error in drag and drop: ${e.message}` }]
             };
         }
     }
@@ -458,25 +489,21 @@ server.tool(
     "uploads a file using a file input element",
     {
         ...locatorSchema,
-        filePath: z.string().describe("Absolute path to the file to upload")
+        filePath: z.string().describe("Path to the file to upload")
     },
-    async ({ by, value, filePath, timeout = 10000 }) => {
+    async (params) => {
+        const { by, value, filePath, timeout = 10000 } = params as { by: LocatorStrategy; value: string; filePath: string; timeout?: number };
         try {
             const { browser } = getDriver();
-            const selector = getSelector(by as LocatorStrategy, value);
+            const selector = getSelector(by, value);
+            const element = await browser.$(selector);
+            await element.waitForDisplayed({ timeout });
             
-            // For XPath selectors, use the $ with xpath= prefix
-            const element = by === 'xpath' 
-                ? await browser.$(`xpath=${value}`)
-                : await browser.$(selector);
-                
-            await element.waitForExist({ timeout });
-            
-            // WebdriverIO has a setValue method that works for file inputs
-            await element.setValue(filePath);
+            const absolutePath = await fs.realpath(filePath);
+            await element.setValue(absolutePath);
             
             return {
-                content: [{ type: 'text', text: 'File upload initiated' }]
+                content: [{ type: 'text', text: `Uploaded file: ${filePath}` }]
             };
         } catch (e: any) {
             return {
@@ -548,6 +575,118 @@ server.tool(
     }
 );
 
+server.tool(
+    "get_text",
+    "gets text from an element",
+    locatorSchema,
+    async ({ by, value, timeout = 10000 }: LocatorParams) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by, value);
+            const element = await browser.$(selector);
+            await element.waitForDisplayed({ timeout });
+            const text = await element.getText();
+            return {
+                content: [{ type: 'text', text }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error getting text: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "get_attribute",
+    "gets an attribute value from an element",
+    {
+        ...locatorSchema,
+        attribute: z.string().describe("Name of the attribute to get")
+    },
+    async (params) => {
+        const { by, value, attribute, timeout = 10000 } = params as { by: LocatorStrategy; value: string; attribute: string; timeout?: number };
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by, value);
+            const element = await browser.$(selector);
+            await element.waitForDisplayed({ timeout });
+            const attrValue = await element.getAttribute(attribute);
+            return {
+                content: [{ type: 'text', text: attrValue || '' }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error getting attribute: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "is_displayed",
+    "checks if an element is displayed",
+    locatorSchema,
+    async ({ by, value, timeout = 10000 }: LocatorParams) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by, value);
+            const element = await browser.$(selector);
+            const isDisplayed = await element.isDisplayed();
+            return {
+                content: [{ type: 'text', text: isDisplayed.toString() }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error checking display: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "is_enabled",
+    "checks if an element is enabled",
+    locatorSchema,
+    async ({ by, value, timeout = 10000 }: LocatorParams) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by, value);
+            const element = await browser.$(selector);
+            const isEnabled = await element.isEnabled();
+            return {
+                content: [{ type: 'text', text: isEnabled.toString() }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error checking enabled state: ${e.message}` }]
+            };
+        }
+    }
+);
+
+server.tool(
+    "clear_text",
+    "clears text from an input element",
+    locatorSchema,
+    async ({ by, value, timeout = 10000 }: LocatorParams) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by, value);
+            const element = await browser.$(selector);
+            await element.waitForDisplayed({ timeout });
+            await element.clearValue();
+            return {
+                content: [{ type: 'text', text: `Cleared text from element with ${by}: ${value}` }]
+            };
+        } catch (e: any) {
+            return {
+                content: [{ type: 'text', text: `Error clearing text: ${e.message}` }]
+            };
+        }
+    }
+);
+
 // Resources
 server.resource(
     "browser-status",
@@ -579,6 +718,19 @@ async function cleanup() {
 process.on('SIGTERM', cleanup);
 process.on('SIGINT', cleanup);
 
-// Start the server
-const transport = new StdioServerTransport();
-await server.connect(transport);
+export async function startServer() {
+    const transport = await server.listen();
+    
+    // Register WebdriverIO tools
+    await startWebdriverIO(server);
+    
+    console.log('MCP WebdriverIO server started');
+    console.log('Transport:', transport);
+    
+    return server;
+}
+
+// Start the server if this file is run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+    await startServer();
+}
