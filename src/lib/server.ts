@@ -705,6 +705,92 @@ server.tool(
     }
 );
 
+// Add new MCP tool for $$ (find_elements) support
+server.tool(
+    "find_elements",
+    "finds multiple elements using the specified locator strategy ($$)",
+    locatorSchema,
+    async ({ by, value, timeout = 10000 }: LocatorParams) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by, value);
+            const elements = await browser.$$(selector);
+            if (elements.length === 0) {
+                return { content: [{ type: "text", text: "No elements found." }] };
+            }
+            const texts = await Promise.all(elements.map(async (el: WebdriverIO.Element) => (await el.getText())));
+            return { content: [{ type: "text", text: JSON.stringify(texts) }] };
+        } catch (e: any) {
+            return { content: [{ type: "text", text: "Error finding elements: " + e.message }] };
+        }
+    }
+);
+
+// Add new MCP tool for $ (find_element) support (if not already present)
+server.tool(
+    "find_element",
+    "finds a single element using the specified locator strategy ($)",
+    locatorSchema,
+    async ({ by, value, timeout = 10000 }: LocatorParams) => {
+        try {
+            const { browser } = getDriver();
+            const selector = getSelector(by, value);
+            const element = await browser.$(selector);
+            if (!element) {
+                return { content: [{ type: "text", text: "Element not found." }] };
+            }
+            const text = await element.getText();
+            return { content: [{ type: "text", text }] };
+        } catch (e: any) {
+            return { content: [{ type: "text", text: "Error finding element: " + e.message }] };
+        }
+    }
+);
+
+// Add a new MCP tool for network intercept (using browser.mock) support
+server.tool(
+    "network_intercept",
+    "intercepts (and optionally mocks) a network request (using browser.mock).",
+    {
+        url: z.string().describe('The (glob) url (or endpoint) to intercept (e.g., "/api" or "**/api")'),
+        method: z.enum(["GET", "POST", "PUT", "DELETE"]).describe("The HTTP method (GET, POST, PUT, DELETE)"),
+        response: z.any().optional().describe("Optional JSON response (if provided, the request is mocked; otherwise, the request is logged.)")
+    },
+    async ({ url, method, response }: { url: string; method: "GET" | "POST" | "PUT" | "DELETE"; response?: any }) => {
+        try {
+            const { browser } = getDriver();
+            const mock = browser.mock(url, { method });
+            if (response) {
+                mock.reply(response);
+            } else {
+                mock.reply((req: any) => {
+                    console.log("Intercepted request:", req);
+                    return { statusCode: 200, body: "Intercepted (logged) request." };
+                });
+            }
+            return { content: [{ type: "text", text: `Network intercept (mock) set for "${url}" (method: "${method}").` }] };
+        } catch (e: any) {
+            return { content: [{ type: "text", text: "Error intercepting network request: " + e.message }] };
+        }
+    }
+);
+
+// Add a new MCP tool (clear_intercepts) to clear (or "restores") all active network intercepts (mocks).
+server.tool(
+    "clear_intercepts",
+    'clears (or "restores") all active network intercepts (mocks).',
+    {},
+    async () => {
+        try {
+            const { browser } = getDriver();
+            await browser.restoreAllMocks();
+            return { content: [{ type: "text", text: "All network intercepts (mocks) cleared." }] };
+        } catch (e: any) {
+            return { content: [{ type: "text", text: "Error clearing intercepts: " + e.message }] };
+        }
+    }
+);
+
 // Resources
 server.resource(
     "browser-status",

@@ -74,7 +74,7 @@ mcp-webdriverio/
 - **Navigate:**  
   `navigate` (to a URL)
 - **Element actions:**  
-  `find_element`, `click_element`, `type_text`, `send_keys`, `get_element_text`, `get_attribute`, `clear_text`
+  `find_element` (single element, $), `find_elements` (multiple elements, $$), `click_element`, `type_text`, `send_keys`, `get_element_text`, `get_attribute`, `clear_text`
 - **Mouse actions:**  
   `hover`, `drag_and_drop`, `double_click`, `right_click`
 - **Keyboard actions:**  
@@ -115,12 +115,22 @@ The server supports the following locator strategies (as defined in `server.ts`)
 
 ### Example Usage
 
-For example, to find an element using its id, you can call the `find_element` tool as follows:
+For example, to find a single element using its id, you can call the `find_element` tool as follows:
 
 ```json
 {
   "by": "id",
   "value": "myElement",
+  "timeout": 10000
+}
+```
+
+To find multiple elements (using $$) (for example, all elements with class "myClass"), you can call the `find_elements` tool as follows:
+
+```json
+{
+  "by": "css",
+  "value": ".myClass",
   "timeout": 10000
 }
 ```
