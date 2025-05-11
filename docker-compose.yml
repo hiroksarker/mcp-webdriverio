@@ -1,0 +1,19 @@
+services:
+  mcp-webdriverio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-webdriverio-server
+    volumes:
+      - ./screenshots:/app/screenshots
+      - ./uploads:/app/uploads
+    environment:
+      - NODE_ENV=production
+    # Uncomment if you need to expose a port
+    # ports:
+    #   - "4444:4444"
+    # Add any additional environment variables here
+    # environment:
+    #   - WDIO_LOG_LEVEL=info
+    #   - WDIO_MAX_INSTANCES=5
+    restart: unless-stopped 
