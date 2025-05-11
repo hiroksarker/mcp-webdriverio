@@ -12,126 +12,47 @@ This package provides a bridge between AI models and WebdriverIO, allowing AI as
 - Getting element attributes
 - Drag and drop operations
 - File uploads
-- And more...
+- Taking screenshots
+- Checking element state (displayed/enabled)
+- Keyboard and mouse actions
 
 ## Features
 
-- Start browser sessions with customizable options
+- Start browser sessions with customizable options (headless, arguments)
 - Navigate to URLs
-- Find elements using various locator strategies
+- Find elements using various locator strategies (`id`, `css`, `xpath`, etc.)
 - Click, type, and interact with elements
-- Perform mouse actions (hover, drag and drop)
+- Perform mouse actions (hover, drag and drop, double/right click)
 - Handle keyboard input
-- Take screenshots
+- Take screenshots (to file or as base64)
 - Upload files
-- Support for headless mode
+- Check if elements are displayed or enabled
+- Clear input fields
 
 ## Requirements
 
 - Node.js >= 18
-- A modern web browser (Chrome, Firefox, Safari, etc.)
+- Chrome or Firefox browser
 
 ## Installation
 
-### Option 1: Using npm
-```bash
-npm install mcp-webdriverio
-```
-
-### Option 2: Using npx
-```bash
-npx -y mcp-webdriverio
-```
-
-### Option 3: Using Docker
-```bash
-# Build the Docker image
-docker build -t mcp-webdriverio .
-
-# Run the container
-docker run -it --rm \
-  -v $(pwd)/mcp-config.json:/usr/src/app/mcp-config.json \
-  -v $(pwd)/uploads:/usr/src/app/uploads \
-  -v $(pwd)/screenshots:/usr/src/app/screenshots \
-  mcp-webdriverio
-```
-
-For development with hot-reload:
-```bash
-docker run -it --rm \
-  -v $(pwd):/usr/src/app \
-  -v /usr/src/app/node_modules \
-  mcp-webdriverio npm run dev
-```
-
-### Option 4: Global Installation
-```bash
-npm install -g mcp-webdriverio
-```
-
-## Usage
-
-### Basic Setup
-
-1. Create a configuration file (e.g., `mcp-config.json`):
-```json
-{
-  "browser": {
-    "capabilities": {
-      "browserName": "chrome"
-    }
-  }
-}
-```
-
-2. Start the MCP server:
-```bash
-mcp-webdriverio
-```
-
-### Use with MCP Clients
-
-#### Goose Desktop
-Copy and paste this link into your browser to add the extension to Goose desktop:
-```
-goose://extension?cmd=npx&arg=-y&arg=mcp-webdriverio&id=webdriverio-mcp&name=WebdriverIO%20MCP&description=automates%20browser%20interactions
-```
-
-#### Other MCP Clients (e.g., Claude Desktop)
-Add to your MCP configuration:
-```json
-{
-  "mcpServers": {
-    "webdriverio": {
-      "command": "npx",
-      "args": ["-y", "mcp-webdriverio"]
-    }
-  }
-}
-```
-
-## Development
-
-1. Clone the repository:
-```bash
-git clone https://github.com/hiroksarker/mcp-webdriverio.git
-cd mcp-webdriverio
-```
-
-2. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Build the project:
-```bash
-npm run build
-```
+## Usage
 
-4. Start in development mode:
-```bash
-npm run dev
-```
+1. **Start the MCP WebdriverIO server:**
+   ```bash
+   npm run dev
+   ```
+   or
+   ```bash
+   npm run build
+   node dist/lib/server.js
+   ```
+
+2. **Configure your MCP client** to connect to this server.
 
 ## Project Structure
 
@@ -139,25 +60,90 @@ npm run dev
 mcp-webdriverio/
 ├── dist/               # Compiled JavaScript files
 ├── src/
-│   ├── bin/           # CLI entry point
-│   ├── lib/           # Core library code
-│   │   ├── server.ts  # MCP server implementation
-│   │   └── driver.ts  # WebdriverIO driver setup
+│   ├── lib/           # Core library code (server.ts is the main entry)
 │   └── types/         # TypeScript type definitions
 ├── package.json
-└── tsconfig.json
+├── tsconfig.json
+└── README.md
 ```
 
-## Implementation Differences
+## Example Supported Commands
 
-| Feature | WebdriverIO Approach |
-|---------|---------------------|
-| Finding Elements | `browser.$('#foo')` |
-| Waiting for Elements | `element.waitForExist()` |
-| Clicking | `element.click()` |
-| Entering Text | `element.setValue('text')` |
-| Handling Dropdowns | Direct element interaction |
-| Taking Screenshots | `browser.takeScreenshot()` |
+- **Start browser session:**  
+  `start_browser` (with options for browser type, headless, arguments)
+- **Navigate:**  
+  `navigate` (to a URL)
+- **Element actions:**  
+  `find_element`, `click_element`, `type_text`, `send_keys`, `get_element_text`, `get_attribute`, `clear_text`
+- **Mouse actions:**  
+  `hover`, `drag_and_drop`, `double_click`, `right_click`
+- **Keyboard actions:**  
+  `press_key`
+- **File upload:**  
+  `upload_file`
+- **Screenshot:**  
+  `take_screenshot`
+- **Element state:**  
+  `is_displayed`, `is_enabled`
+- **Wait for element:**  
+  `wait_for_element`
+- **Close session:**  
+  `close_session`
+
+## Element Locator Strategies
+
+The server supports the following locator strategies (as defined in `server.ts`):
+
+- **id:**  
+  Use the element's id (e.g., `{ by: "id", value: "myElement" }`).
+- **css:**  
+  Use a CSS selector (e.g., `{ by: "css", value: ".myClass" }`).
+- **xpath:**  
+  Use an XPath expression (e.g., `{ by: "xpath", value: "//div[contains(@class, 'myClass')]" }`).
+- **name:**  
+  Use the element's name attribute (e.g., `{ by: "name", value: "myName" }`).
+- **tag:**  
+  Use the tag name (e.g., `{ by: "tag", value: "div" }`).
+- **class:**  
+  Use the element's class (e.g., `{ by: "class", value: "myClass" }`).
+- **linkText:**  
+  Use the exact text of a link (e.g., `{ by: "linkText", value: "Click Me" }`).
+- **partialLinkText:**  
+  Use a substring of a link's text (e.g., `{ by: "partialLinkText", value: "Click" }`).
+- **shadow:**  
+  Use a shadow DOM selector (e.g., `{ by: "shadow", value: "shadowSelector" }`).
+
+### Example Usage
+
+For example, to find an element using its id, you can call the `find_element` tool as follows:
+
+```json
+{
+  "by": "id",
+  "value": "myElement",
+  "timeout": 10000
+}
+```
+
+## Development
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/hiroksarker/mcp-webdriverio.git
+   cd mcp-webdriverio
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Build the project:
+   ```bash
+   npm run build
+   ```
+4. Start in development mode:
+   ```bash
+   npm run dev
+   ```
 
 ## Contributing
 
@@ -165,7 +151,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License – see the [LICENSE](LICENSE) file for details.
 
 ## Keywords
 
