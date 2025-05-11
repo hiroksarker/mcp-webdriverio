@@ -25,7 +25,7 @@ A Model Context Protocol (MCP) server implementation for WebdriverIO, enabling b
 Copy and paste the link below into a browser address bar to add this extension to goose desktop:
 
 ```
-goose://extension?cmd=npx&arg=-y&arg=%40angiejones%2Fmcp-webdriverio&id=webdriverio-mcp&name=WebdriverIO%20MCP&description=automates%20browser%20interactions
+goose://extension?cmd=npx&arg=-y&arg=%40hiroksarker%2Fmcp-webdriverio&id=webdriverio-mcp&name=WebdriverIO%20MCP&description=automates%20browser%20interactions
 ```
 
 ### Option 2: Add manually to desktop or CLI
