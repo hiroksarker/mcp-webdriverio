@@ -127,20 +127,6 @@ mcp-webdriverio/
 └── tsconfig.json
 ```
 
-## Available Tools
-
-[Detailed tool documentation moved to TOOLS.md]
-
-## Advantages of WebdriverIO vs Selenium WebDriver
-
-- **Modern JavaScript/TypeScript Support**: Built with modern JavaScript in mind, with full TypeScript support
-- **Simplified API**: More concise and intuitive API compared to Selenium WebDriver
-- **Automatic Waiting**: Built-in waits for better test stability
-- **Better Async/Await Support**: Designed for modern JavaScript patterns
-- **Improved Error Messages**: More descriptive error messages for debugging
-- **Integrated Testing Framework**: Works with Mocha, Jasmine, or Jest
-- **Community and Plugins**: Strong community with many plugins
-
 ## Implementation Differences
 
 | Feature | Selenium Approach | WebdriverIO Approach |
