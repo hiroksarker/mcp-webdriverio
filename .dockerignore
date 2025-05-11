@@ -35,4 +35,13 @@ Dockerfile
 
 # Misc
 .DS_Store
-*.log 
+*.log
+
+# Exclusions
+*.md
+!README.md
+coverage
+test
+tests
+uploads
+screenshots 

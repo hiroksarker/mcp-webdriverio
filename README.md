@@ -43,7 +43,28 @@ npm install mcp-webdriverio
 npx -y mcp-webdriverio
 ```
 
-### Option 3: Global Installation
+### Option 3: Using Docker
+```bash
+# Build the Docker image
+docker build -t mcp-webdriverio .
+
+# Run the container
+docker run -it --rm \
+  -v $(pwd)/mcp-config.json:/usr/src/app/mcp-config.json \
+  -v $(pwd)/uploads:/usr/src/app/uploads \
+  -v $(pwd)/screenshots:/usr/src/app/screenshots \
+  mcp-webdriverio
+```
+
+For development with hot-reload:
+```bash
+docker run -it --rm \
+  -v $(pwd):/usr/src/app \
+  -v /usr/src/app/node_modules \
+  mcp-webdriverio npm run dev
+```
+
+### Option 4: Global Installation
 ```bash
 npm install -g mcp-webdriverio
 ```
@@ -129,14 +150,14 @@ mcp-webdriverio/
 
 ## Implementation Differences
 
-| Feature | Selenium Approach | WebdriverIO Approach |
-|---------|-----------------|---------------------|
-| Finding Elements | `driver.findElement(By.id('foo'))` | `browser.$('#foo')` |
-| Waiting for Elements | `driver.wait(until.elementLocated(...))` | `element.waitForExist()` |
-| Clicking | `element.click()` | `element.click()` |
-| Entering Text | `element.sendKeys('text')` | `element.setValue('text')` |
-| Handling Dropdowns | Requires the Select class | Direct element interaction |
-| Taking Screenshots | `driver.takeScreenshot()` | `browser.takeScreenshot()` |
+| Feature | WebdriverIO Approach |
+|---------|---------------------|
+| Finding Elements | `browser.$('#foo')` |
+| Waiting for Elements | `element.waitForExist()` |
+| Clicking | `element.click()` |
+| Entering Text | `element.setValue('text')` |
+| Handling Dropdowns | Direct element interaction |
+| Taking Screenshots | `browser.takeScreenshot()` |
 
 ## Contributing
 

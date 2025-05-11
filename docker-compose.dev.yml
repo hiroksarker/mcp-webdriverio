@@ -1,0 +1,17 @@
+services:
+  mcp-webdriverio:
+    build:
+      context: .
+      target: development
+    # Override the build to mount source code for development
+    volumes:
+      - .:/app
+      - /app/node_modules
+    # Development environment variables
+    environment:
+      - NODE_ENV=development
+      - WDIO_LOG_LEVEL=debug
+      - NODE_OPTIONS=--enable-source-maps
+    # Remove healthcheck in development
+    healthcheck:
+      disable: true 
