@@ -87,6 +87,10 @@ mcp-webdriverio/
   `is_displayed`, `is_enabled`
 - **Wait for element:**  
   `wait_for_element`
+- **Network intercept (mock):**  
+  `network_intercept` (intercept (and optionally mock) a network request (using browser.mock)), `clear_intercepts` (clear (or "restore") all active intercepts (mocks))
+- **AI Support:**  
+  `ai_support` (simulated AI assistant (for example, "ask" for help on how to use a tool (for example, "How do I use find_elements?")))
 - **Close session:**  
   `close_session`
 
@@ -134,6 +138,16 @@ To find multiple elements (using $$) (for example, all elements with class "myCl
   "timeout": 10000
 }
 ```
+
+To "ask" for help (for example, "How do I use find_elements?"), you can call the `ai_support` tool as follows:
+
+```json
+{
+  "query": "How do I use find_elements?"
+}
+```
+
+(Note: In a real scenario, you'd call an external AI API (or use a local model) to "enrich" the project with AI support.)
 
 ## Development
 

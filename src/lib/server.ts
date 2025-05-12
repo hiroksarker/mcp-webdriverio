@@ -791,6 +791,31 @@ server.tool(
     }
 );
 
+// Add a new MCP tool (ai_support) to "enrich" the project with AI support (simulated AI assistant)
+server.tool(
+    "ai_support",
+    "Simulates an AI assistant (for example, to \"ask\" for help on how to use a tool).",
+    {
+        query: z.string().describe("Your AI query (for example, \"How do I use find_elements?\")")
+    },
+    async ({ query }: { query: string }) => {
+        // (Simulated AI response – in a real scenario, you'd call an external AI API or use a local model.)
+        let response: string;
+        if (query.toLowerCase().includes("find_elements")) {
+            response = "To use find_elements, call the tool with a locator (by, value) and (optionally) a timeout. For example, { by: 'css', value: '.myClass', timeout: 10000 }.";
+        } else if (query.toLowerCase().includes("find_element")) {
+            response = "To use find_element, call the tool with a locator (by, value) and (optionally) a timeout. For example, { by: 'id', value: 'myElement', timeout: 10000 }.";
+        } else if (query.toLowerCase().includes("network_intercept")) {
+            response = "To use network_intercept, call the tool with a url (glob), a method (GET, POST, PUT, DELETE), and (optionally) a JSON response (to mock). For example, { url: '/api', method: 'GET', response: { status: 'ok' } }.";
+        } else if (query.toLowerCase().includes("clear_intercepts")) {
+            response = "To clear (or \"restore\") all active network intercepts (mocks), call the clear_intercepts tool (with no parameters).";
+        } else {
+            response = "AI support (simulated) – please ask a question (for example, \"How do I use find_elements?\").";
+        }
+        return { content: [{ type: "text", text: response }] };
+    }
+);
+
 // Resources
 server.resource(
     "browser-status",
