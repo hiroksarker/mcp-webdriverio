@@ -872,3 +872,44 @@ export { server, startServer };
 if (require.main === module) {
     startServer().catch(console.error);
 }
+
+server.tool(
+    "switch_frame",
+    "Switches to a frame by index, name, or element selector.",
+    {
+        frame: z.union([z.string(), z.number()]).describe("Frame index, name, or selector")
+    },
+    async ({ frame }: { frame: string | number }) => {
+        try {
+            const { browser } = getDriver();
+            await browser.switchToFrame(frame);
+            return { content: [{ type: "text", text: `Switched to frame: ${frame}` }] };
+        } catch (e: any) {
+            return { content: [{ type: "text", text: `Error switching frame: ${e.message}` }] };
+        }
+    }
+);
+
+server.tool(
+    "switch_window",
+    "Switches to a browser window by handle or title.",
+    {
+        handleOrTitle: z.string().describe("Window handle or title")
+    },
+    async ({ handleOrTitle }: { handleOrTitle: string }) => {
+        try {
+            const { browser } = getDriver();
+            const handles = await browser.getWindowHandles();
+            for (const handle of handles) {
+                await browser.switchToWindow(handle);
+                const title = await browser.getTitle();
+                if (handle === handleOrTitle || title === handleOrTitle) {
+                    return { content: [{ type: "text", text: `Switched to window: ${handleOrTitle}` }] };
+                }
+            }
+            return { content: [{ type: "text", text: `Window not found: ${handleOrTitle}` }] };
+        } catch (e: any) {
+            return { content: [{ type: "text", text: `Error switching window: ${e.message}` }] };
+        }
+    }
+);

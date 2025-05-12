@@ -1,6 +1,6 @@
 {
   "name": "mcp-webdriverio",
-  "version": "0.1.3",
+  "version": "1.0.1",
   "description": "WebdriverIO MCP Server",
   "type": "module",
   "publishConfig": {
