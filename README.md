@@ -15,7 +15,7 @@ This package provides a bridge between AI models and WebdriverIO, allowing AI as
   - Get browser session information
 
 - **Element Interaction:**
-  - Find elements using various locator strategies
+  - Find elements using various locator strategies (CSS, XPath, ID, Name, Tag, Class)
   - Find multiple elements
   - Click elements
   - Type text
@@ -37,22 +37,84 @@ This package provides a bridge between AI models and WebdriverIO, allowing AI as
 ## Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/mcp-webdriverio.git
+cd mcp-webdriverio
+
+# Install dependencies
 npm install
+
+# Build the project
+npm run build
 ```
 
 ## Usage
 
-1. **Start the MCP WebdriverIO server:**
-   ```bash
-   npm start
-   ```
-   or
-   ```bash
-   npm run build
-   node dist/lib/server.js
-   ```
+### As a Package
 
-2. **Configure your MCP client** to connect to this server.
+1. Install the package:
+```bash
+npm install mcp-webdriverio
+```
+
+2. Use in your code:
+```javascript
+import { Server } from 'mcp-webdriverio';
+
+const server = new Server({
+    port: 3000,
+    browserOptions: {
+        headless: true,
+        browserName: 'chrome'
+    }
+});
+
+// Start the server
+await server.listen();
+
+// Use the server
+try {
+    // Start a browser session
+    const { content: [{ sessionId }] } = await server.mcpServer.handleMessage({
+        type: 'tool',
+        name: 'start_browser',
+        params: { headless: true }
+    });
+
+    // Navigate to a page
+    await server.mcpServer.handleMessage({
+        type: 'tool',
+        name: 'navigate',
+        params: {
+            sessionId,
+            url: 'https://example.com'
+        }
+    });
+
+    // Find an element
+    const { content: [element] } = await server.mcpServer.handleMessage({
+        type: 'tool',
+        name: 'find_element',
+        params: {
+            sessionId,
+            by: 'css selector',
+            value: 'h1'
+        }
+    });
+} finally {
+    // Clean up
+    await server.close();
+}
+```
+
+### As a CLI Tool
+
+1. Start the server:
+```bash
+npm start
+```
+
+2. The server will listen on port 3000 by default.
 
 ## Project Structure
 
@@ -65,52 +127,53 @@ mcp-webdriverio/
 │   │   │   ├── tools/ # Browser, element, and network tools
 │   │   │   └── ...    # Server utilities (logger, session, etc.)
 │   │   └── ...        # Core server classes
-│   └── types/         # TypeScript type definitions
+│   ├── types/         # TypeScript type definitions
+│   └── bin/           # CLI entry point
 ├── tests/             # Test suite
-│   ├── element-finding-example.test.ts
-│   └── ...           # Other test files
+│   └── element-finding-example.test.ts
+├── examples/          # Usage examples
+│   ├── basic-usage.js
+│   └── README.md
 ├── package.json
-├── tsconfig.json
-└── README.md
+└── tsconfig.json
 ```
-
-## Element Locator Strategies
-
-The server supports the following locator strategies:
-
-- **css selector:** Use CSS selectors (e.g., `#id`, `.class`, `[attr=value]`)
-- **xpath:** Use XPath expressions
-- **id:** Use element ID
-- **name:** Use element name attribute
-- **tag name:** Use HTML tag name
-- **class name:** Use element class name
 
 ## Development
 
-1. **Build the project:**
-   ```bash
-   npm run build
-   ```
+1. Install dependencies:
+```bash
+npm install
+```
 
-2. **Run tests:**
-   ```bash
-   npm test
-   ```
+2. Build the project:
+```bash
+npm run build
+```
 
-3. **Run tests in watch mode:**
-   ```bash
-   npm run test:watch
-   ```
-
-## Testing
-
-The project uses Jest for testing. Tests are located in the `tests/` directory and can be run using:
-
+3. Run tests:
 ```bash
 npm test
 ```
 
-See the [tests README](./tests/README.md) for more details about testing.
+4. Watch mode for development:
+```bash
+npm run dev
+```
+
+## Testing
+
+The project uses Jest for testing. Tests are located in the `tests/` directory.
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
 
 ## License
 
