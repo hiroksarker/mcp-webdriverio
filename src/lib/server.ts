@@ -124,10 +124,10 @@ server.tool(
     "start_browser",
     "launches browser",
     {
-        browser: z.enum(["chrome", "firefox"]).describe("Browser to launch (chrome or firefox)"),
+        browser: z.enum(["chrome", "firefox", "edge", "safari"]).describe("Browser to launch (chrome, firefox, edge, or safari)"),
         options: browserOptionsSchema
     },
-    async ({ browser, options = {} }: { browser: 'chrome' | 'firefox', options?: BrowserOptions }) => {
+    async ({ browser, options = {} }: { browser: 'chrome' | 'firefox' | 'edge' | 'safari', options?: BrowserOptions }) => {
         try {
             const browserOptions: Options.WebdriverIO = {
                 logLevel: 'error',
@@ -150,7 +150,7 @@ server.tool(
                 if (options?.arguments) {
                     (browserOptions.capabilities['goog:chromeOptions'] as any).args.push(...options.arguments);
                 }
-            } else {
+            } else if (browser === 'firefox') {
                 browserOptions.capabilities = {
                     browserName: 'firefox',
                     'moz:firefoxOptions': {
@@ -165,6 +165,26 @@ server.tool(
                 if (options?.arguments) {
                     (browserOptions.capabilities['moz:firefoxOptions'] as any).args.push(...options.arguments);
                 }
+            } else if (browser === 'edge') {
+                browserOptions.capabilities = {
+                    browserName: 'edge',
+                    'ms:edgeOptions': {
+                        args: []
+                    }
+                };
+                
+                if (options?.headless) {
+                    (browserOptions.capabilities['ms:edgeOptions'] as any).args.push('--headless');
+                }
+                
+                if (options?.arguments) {
+                    (browserOptions.capabilities['ms:edgeOptions'] as any).args.push(...options.arguments);
+                }
+            } else if (browser === 'safari') {
+                browserOptions.capabilities = {
+                    browserName: 'safari'
+                };
+                // Safari does not support headless mode (or extra arguments) via WebDriver, so we ignore options.headless and options.arguments.
             }
 
             const driver = await remote(browserOptions);
