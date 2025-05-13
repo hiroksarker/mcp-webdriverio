@@ -160,41 +160,12 @@ npm test
 npm run dev
 ```
 
-## Releases
-
-### Versioning
-
-This project follows [Semantic Versioning](https://semver.org/) (MAJOR.MINOR.PATCH):
-
-- **MAJOR** version for incompatible API changes
-- **MINOR** version for backwards-compatible functionality
-- **PATCH** version for backwards-compatible bug fixes
-
-### Publishing a New Release
-
-1. Update version in `package.json`:
-```bash
-npm version <major|minor|patch>
-```
-
-2. Build the project:
-```bash
-npm run build
-```
-
-3. Run tests to ensure everything works:
-```bash
-npm test
-```
-
-4. Publish to npm:
-```bash
-npm publish
-```
-
 ### Release Notes
 
-#### v1.0.3 (Current)
+#### v1.0.4 (Current)
+- Update README.md files
+
+#### v1.0.3
 - Fixed MCPServer export and import issues
 - Updated test suite to use Server class directly
 - Improved documentation and examples
