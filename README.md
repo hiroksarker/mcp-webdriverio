@@ -160,6 +160,67 @@ npm test
 npm run dev
 ```
 
+## Releases
+
+### Versioning
+
+This project follows [Semantic Versioning](https://semver.org/) (MAJOR.MINOR.PATCH):
+
+- **MAJOR** version for incompatible API changes
+- **MINOR** version for backwards-compatible functionality
+- **PATCH** version for backwards-compatible bug fixes
+
+### Publishing a New Release
+
+1. Update version in `package.json`:
+```bash
+npm version <major|minor|patch>
+```
+
+2. Build the project:
+```bash
+npm run build
+```
+
+3. Run tests to ensure everything works:
+```bash
+npm test
+```
+
+4. Publish to npm:
+```bash
+npm publish
+```
+
+### Release Notes
+
+#### v1.0.3 (Current)
+- Fixed MCPServer export and import issues
+- Updated test suite to use Server class directly
+- Improved documentation and examples
+- Cleaned up project structure
+- Removed unused Docker files
+
+#### v1.0.2
+- Added network monitoring tools
+- Improved element finding strategies
+- Enhanced error handling
+- Added comprehensive test suite
+- Updated documentation
+
+#### v1.0.1
+- Added session management
+- Implemented browser tools
+- Added element interaction tools
+- Basic CLI interface
+
+#### v1.0.0
+- Initial release
+- Basic browser automation support
+- Core server implementation
+- TypeScript support
+- Basic documentation
+
 ## Testing
 
 The project uses Jest for testing. Tests are located in the `tests/` directory.
