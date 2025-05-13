@@ -1,17 +1,23 @@
+version: '3.8'
+
 services:
-  mcp-webdriverio:
+  mcp-server:
     build:
       context: .
+      dockerfile: Dockerfile
       target: development
-    # Override the build to mount source code for development
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # For Node.js debugging
+    environment:
+      - NODE_ENV=development
+      - CHROME_BIN=/usr/bin/chromium
+      - DISPLAY=:99
+      - DEBUG=*  # Enable debug logging
     volumes:
       - .:/app
       - /app/node_modules
-    # Development environment variables
-    environment:
-      - NODE_ENV=development
-      - WDIO_LOG_LEVEL=debug
-      - NODE_OPTIONS=--enable-source-maps
-    # Remove healthcheck in development
-    healthcheck:
-      disable: true 
+      - ./uploads:/app/uploads
+      - ./screenshots:/app/screenshots
+    command: npm run dev  # Use development mode with hot-reloading
+    restart: unless-stopped 

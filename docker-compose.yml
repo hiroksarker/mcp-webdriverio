@@ -1,35 +1,23 @@
+version: '3.8'
+
 services:
-  mcp-webdriverio:
+  mcp-server:
     build:
       context: .
-      target: production
-    container_name: mcp-webdriverio-server
-    volumes:
-      - ./mcp-config.json:/app/mcp-config.json
-      - ./uploads:/app/uploads
-      - ./screenshots:/app/screenshots
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DISPLAY=:99
       - CHROME_BIN=/usr/bin/chromium
-      - CHROME_PATH=/usr/lib/chromium/
-    # For development, use this override:
-    # command: npm run dev
-    # volumes:
-    #   - .:/app
-    #   - /app/node_modules
+      - DISPLAY=:99
+    volumes:
+      - ./uploads:/app/uploads
+      - ./screenshots:/app/screenshots
     restart: unless-stopped
-    # Add healthcheck
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4444/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-    # Uncomment if you need to expose a port
-    # ports:
-    #   - "4444:4444"
-    # Add any additional environment variables here
-    # environment:
-    #   - WDIO_LOG_LEVEL=info
-    #   - WDIO_MAX_INSTANCES=5 
+      start_period: 10s 

@@ -18,8 +18,10 @@
     "start": "node dist/bin/mcp-webdriverio.js",
     "dev": "tsc -w",
     "prepublishOnly": "npm run build",
-    "test": "jest",
-    "test:watch": "jest --watch"
+    "pretest": "npm run build",
+    "test": "cd tests && node --experimental-vm-modules ../node_modules/jest/bin/jest.js",
+    "test:watch": "cd tests && node --experimental-vm-modules ../node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "cd tests && node --experimental-vm-modules ../node_modules/jest/bin/jest.js --coverage"
   },
   "keywords": [
     "mcp",
@@ -32,42 +34,18 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "latest",
-    "@wdio/cli": "^8.32.5",
-    "@wdio/local-runner": "^8.32.5",
-    "@wdio/mocha-framework": "^8.32.5",
-    "chai": "^4.3.7",
-    "mocha": "^10.2.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.3.3",
-    "webdriverio": "^8.32.5"
+    "webdriverio": "^8.32.5",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/chai": "^4.3.11",
-    "@types/jest": "^29.5.12",
-    "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.19",
+    "@wdio/types": "^8.32.5",
+    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2",
+    "@types/jest": "^29.5.12",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.2",
-    "typescript": "^5.3.3"
-  },
-  "jest": {
-    "preset": "ts-jest",
-    "testEnvironment": "node",
-    "extensionsToTreatAsEsm": [
-      ".ts"
-    ],
-    "moduleNameMapper": {
-      "^(\\.{1,2}/.*)\\.js$": "$1"
-    },
-    "transform": {
-      "^.+\\.tsx?$": [
-        "ts-jest",
-        {
-          "useESM": true
-        }
-      ]
-    }
+    "@jest/globals": "^29.7.0"
   },
   "engines": {
     "node": ">=18"

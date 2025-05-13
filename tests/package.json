@@ -1,0 +1,27 @@
+{
+  "name": "webdriverio-network-tools-tests",
+  "version": "1.0.0",
+  "description": "Test suite for WebdriverIO Network Tools",
+  "type": "module",
+  "scripts": {
+    "pretest": "npm run start-server",
+    "start-server": "cd .. && npm start & sleep 5",
+    "test": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js --watch",
+    "posttest": "npm run cleanup",
+    "cleanup": "pkill -f 'node dist/lib/server.js' || true"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "file:..",
+    "@types/node": "^18.0.0",
+    "@wdio/types": "^8.0.0",
+    "webdriverio": "^8.0.0"
+  },
+  "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "@types/jest": "^29.5.12",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.0.0"
+  }
+} 

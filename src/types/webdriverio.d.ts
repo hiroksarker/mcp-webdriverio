@@ -26,6 +26,7 @@ declare module 'webdriverio' {
         compareScreenshots(screenshot: string, baseline: string, options?: any): Promise<any>;
         takeFullPageScreenshot(): Promise<string>;
         $(selector: string): Promise<Element>;
+        $$(selector: string): Promise<Element[]>;
         url(url: string): Promise<void>;
         waitUntil(condition: () => Promise<boolean>, options?: { timeout?: number; timeoutMsg?: string }): Promise<void>;
         execute(script: string | ((...args: any[]) => any), ...args: any[]): Promise<any>;
