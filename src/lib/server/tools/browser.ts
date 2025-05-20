@@ -2,6 +2,9 @@ import { remote, Browser } from 'webdriverio';
 import type { Options } from '@wdio/types';
 import { SessionManager } from '../session.js';
 import { Logger } from '../logger.js';
+import { MCPServer } from '../../mcp-server.js';
+import { BrowserFactory } from '../browser/factory.js';
+import type { BrowserType, BrowserOptions } from '../browser/types.js';
 
 // Define Chrome capabilities type
 type ChromeOptions = {
@@ -18,25 +21,56 @@ type ChromeCapabilities = {
     'goog:chromeOptions': ChromeOptions;
 };
 
-export function registerBrowserTools(server: any, logger: Logger, sessionManager: SessionManager) {
+export function registerBrowserTools(
+    server: MCPServer,
+    logger: Logger,
+    sessionManager: SessionManager
+) {
+    const browserFactory = new BrowserFactory(logger);
+
     server.registerTool({
         name: 'start_browser',
         description: 'Start a new browser session',
-        run: async (params: { headless?: boolean; arguments?: string[] }) => {
-            const capabilities: ChromeCapabilities = {
-                browserName: 'chrome',
-                'goog:chromeOptions': {
-                    args: params?.arguments || ['--headless=new']
-                }
-            };
+        run: async (params: BrowserOptions & { browserName: BrowserType }) => {
+            logger.debug('Starting browser session:', params);
 
-            const browser = await remote({
-                logLevel: 'error',
-                capabilities
-            });
+            try {
+                const capabilities = await browserFactory.getCapabilities(
+                    params.browserName,
+                    {
+                        headless: params.headless,
+                        version: params.version,
+                        profile: params.profile,
+                        args: params.args
+                    }
+                );
 
-            const sessionId = await sessionManager.createSession(browser);
-            return { sessionId };
+                const browser = await remote(capabilities);
+                const session = await sessionManager.createSession(browser);
+                logger.info('Browser session started:', { sessionId: session.id });
+                return { sessionId: session.id };
+            } catch (error) {
+                logger.error('Failed to start browser session:', error);
+                throw error;
+            }
+        }
+    });
+
+    server.registerTool({
+        name: 'get_available_browsers',
+        description: 'Get list of available browsers',
+        run: async () => {
+            const browsers = await browserFactory.getAvailableBrowsers();
+            return { browsers };
+        }
+    });
+
+    server.registerTool({
+        name: 'validate_browser',
+        description: 'Validate browser installation',
+        run: async (params: { browserName: BrowserType }) => {
+            const isValid = await browserFactory.validateBrowser(params.browserName);
+            return { isValid };
         }
     });
 

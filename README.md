@@ -1,212 +1,249 @@
 # MCP WebdriverIO
 
-A Model Context Protocol (MCP) server implementation for WebdriverIO, enabling AI models to interact with web browsers through natural language commands.
+A Message Control Protocol (MCP) server implementation for WebdriverIO, enabling remote browser automation through a message-based interface.
 
 ## Overview
 
-This package provides a bridge between AI models and WebdriverIO, allowing AI assistants to control web browsers using natural language. It implements the Model Context Protocol (MCP) to enable AI models to perform web automation tasks.
+This project implements a Message Control Protocol server that wraps WebdriverIO functionality, allowing browser automation through a standardized message-based interface. It provides a set of tools for browser control, element interaction, and session management.
 
 ## Features
 
-- **Browser Management:**
-  - Start browser sessions with customizable options (headless, arguments)
-  - Navigate to URLs
-  - Close browser sessions
-  - Get browser session information
+- Browser session management (start, close)
+- Navigation control
+- Element interaction (find, click, type, get text)
+- Cross-browser support (Chrome, Firefox, Safari)
+- Headless mode support
+- Session-based architecture
+- TypeScript support
 
-- **Element Interaction:**
-  - Find elements using various locator strategies (CSS, XPath, ID, Name, Tag, Class)
-  - Find multiple elements
-  - Click elements
-  - Type text
-  - Clear input fields
-  - Submit forms
-  - Wait for elements with timeout
-  - Check element state (displayed/enabled)
+## Prerequisites
 
-- **Network Monitoring:**
-  - Monitor network requests
-  - Get network request logs
-  - Clear network logs
-
-## Requirements
-
-- Node.js >= 18
-- Chrome or Firefox browser
+- Node.js (v14 or higher)
+- npm or yarn
+- Chrome, Firefox, or Safari browser installed
+- For Chrome/Firefox: WebDriver installed (ChromeDriver/geckodriver)
 
 ## Installation
 
+1. Clone the repository:
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/mcp-webdriverio.git
+git clone https://github.com/hiroksarker/mcp-webdriverio.git
 cd mcp-webdriverio
+```
 
-# Install dependencies
+2. Install dependencies:
+```bash
 npm install
-
-# Build the project
-npm run build
 ```
-
-## Usage
-
-### As a Package
-
-1. Install the package:
-```bash
-npm install mcp-webdriverio
-```
-
-2. Use in your code:
-```javascript
-import { Server } from 'mcp-webdriverio';
-
-const server = new Server({
-    port: 3000,
-    browserOptions: {
-        headless: true,
-        browserName: 'chrome'
-    }
-});
-
-// Start the server
-await server.listen();
-
-// Use the server
-try {
-    // Start a browser session
-    const { content: [{ sessionId }] } = await server.mcpServer.handleMessage({
-        type: 'tool',
-        name: 'start_browser',
-        params: { headless: true }
-    });
-
-    // Navigate to a page
-    await server.mcpServer.handleMessage({
-        type: 'tool',
-        name: 'navigate',
-        params: {
-            sessionId,
-            url: 'https://example.com'
-        }
-    });
-
-    // Find an element
-    const { content: [element] } = await server.mcpServer.handleMessage({
-        type: 'tool',
-        name: 'find_element',
-        params: {
-            sessionId,
-            by: 'css selector',
-            value: 'h1'
-        }
-    });
-} finally {
-    // Clean up
-    await server.close();
-}
-```
-
-### As a CLI Tool
-
-1. Start the server:
-```bash
-npm start
-```
-
-2. The server will listen on port 3000 by default.
 
 ## Project Structure
 
 ```
 mcp-webdriverio/
-├── dist/               # Compiled JavaScript files
 ├── src/
-│   ├── lib/           # Core library code
-│   │   ├── server/    # Server implementation
-│   │   │   ├── tools/ # Browser, element, and network tools
-│   │   │   └── ...    # Server utilities (logger, session, etc.)
-│   │   └── ...        # Core server classes
-│   ├── types/         # TypeScript type definitions
-│   └── bin/           # CLI entry point
-├── tests/             # Test suite
-│   └── element-finding-example.test.ts
-├── examples/          # Usage examples
-│   ├── basic-usage.js
-│   └── README.md
+│   ├── lib/
+│   │   ├── server/
+│   │   │   ├── tools/
+│   │   │   │   ├── browser.ts    # Browser control tools
+│   │   │   │   ├── elements.ts   # Element interaction tools
+│   │   │   │   └── navigation.ts # Navigation tools
+│   │   │   └── server.ts         # MCP server implementation
+│   │   └── types.ts              # TypeScript type definitions
+│   └── index.ts                  # Main entry point
+├── tests/
+│   ├── pages/
+│   │   └── LoginPage.ts          # Page object for login page
+│   └── specs/
+│       └── example.spec.ts       # Example test suite
 ├── package.json
-└── tsconfig.json
+└── README.md
 ```
 
-## Development
+## Available Tools
 
-1. Install dependencies:
+### Browser Tools
+- `start_browser`: Start a new browser session
+  ```typescript
+  {
+    type: 'tool',
+    name: 'start_browser',
+    params: {
+      browserName: 'chrome' | 'firefox' | 'safari',
+      headless?: boolean
+    }
+  }
+  ```
+- `close_browser`: Close an existing browser session
+  ```typescript
+  {
+    type: 'tool',
+    name: 'close_browser',
+    params: {
+      sessionId: string
+    }
+  }
+  ```
+
+### Navigation Tools
+- `navigate`: Navigate to a URL
+  ```typescript
+  {
+    type: 'tool',
+    name: 'navigate',
+    params: {
+      sessionId: string,
+      url: string
+    }
+  }
+  ```
+- `get_url`: Get current page URL
+  ```typescript
+  {
+    type: 'tool',
+    name: 'get_url',
+    params: {
+      sessionId: string
+    }
+  }
+  ```
+
+### Element Tools
+- `find_element`: Find an element on the page
+  ```typescript
+  {
+    type: 'tool',
+    name: 'find_element',
+    params: {
+      sessionId: string,
+      by: 'css selector' | 'xpath' | 'id',
+      value: string,
+      timeout?: number
+    }
+  }
+  ```
+- `element_action`: Perform actions on elements
+  ```typescript
+  {
+    type: 'tool',
+    name: 'element_action',
+    params: {
+      sessionId: string,
+      elementId: string,
+      action: 'click' | 'type' | 'clear' | 'submit',
+      value?: string
+    }
+  }
+  ```
+- `getText`: Get text content of an element
+  ```typescript
+  {
+    type: 'tool',
+    name: 'getText',
+    params: {
+      sessionId: string,
+      elementId: string
+    }
+  }
+  ```
+
+## Running Tests
+
+1. Start the MCP server:
 ```bash
-npm install
+npm start
 ```
 
-2. Build the project:
-```bash
-npm run build
-```
-
-3. Run tests:
+2. Run the test suite:
 ```bash
 npm test
 ```
 
-4. Watch mode for development:
-```bash
-npm run dev
+## Example Usage
+
+Here's a simple example of using the MCP server to automate a login flow:
+
+```typescript
+// Start browser session
+const startResponse = await server.mcpServer.handleMessage({
+    type: 'tool',
+    name: 'start_browser',
+    params: {
+        browserName: 'chrome',
+        headless: true
+    }
+});
+const sessionId = startResponse.content[0].sessionId;
+
+// Navigate to login page
+await server.mcpServer.handleMessage({
+    type: 'tool',
+    name: 'navigate',
+    params: {
+        sessionId,
+        url: 'https://example.com/login'
+    }
+});
+
+// Find and fill username
+const usernameResponse = await server.mcpServer.handleMessage({
+    type: 'tool',
+    name: 'find_element',
+    params: {
+        sessionId,
+        by: 'css selector',
+        value: '#username'
+    }
+});
+await server.mcpServer.handleMessage({
+    type: 'tool',
+    name: 'element_action',
+    params: {
+        sessionId,
+        elementId: usernameResponse.content[0].elementId,
+        action: 'type',
+        value: 'testuser'
+    }
+});
+
+// Close browser session
+await server.mcpServer.handleMessage({
+    type: 'tool',
+    name: 'close_browser',
+    params: { sessionId }
+});
 ```
 
-### Release Notes
+## Best Practices
 
-#### v1.0.4 (Current)
-- Update README.md files
+1. **Session Management**
+   - Always close browser sessions after use
+   - Use unique session IDs for parallel test execution
+   - Handle session cleanup in error cases
 
-#### v1.0.3
-- Fixed MCPServer export and import issues
-- Updated test suite to use Server class directly
-- Improved documentation and examples
-- Cleaned up project structure
-- Removed unused Docker files
+2. **Element Interaction**
+   - Use appropriate selectors (prefer CSS selectors over XPath)
+   - Add timeouts for dynamic elements
+   - Implement proper error handling for element not found cases
 
-#### v1.0.2
-- Added network monitoring tools
-- Improved element finding strategies
-- Enhanced error handling
-- Added comprehensive test suite
-- Updated documentation
+3. **Page Objects**
+   - Use page objects to encapsulate page-specific logic
+   - Keep selectors in page objects
+   - Implement reusable actions in page objects
 
-#### v1.0.1
-- Added session management
-- Implemented browser tools
-- Added element interaction tools
-- Basic CLI interface
+## Contributing
 
-#### v1.0.0
-- Initial release
-- Basic browser automation support
-- Core server implementation
-- TypeScript support
-- Basic documentation
-
-## Testing
-
-The project uses Jest for testing. Tests are located in the `tests/` directory.
-
-```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage
-npm run test:coverage
-```
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- WebdriverIO team for the excellent automation framework
+- Selenium WebDriver for the WebDriver protocol
+- All contributors who have helped improve this project

@@ -1,7 +1,7 @@
 import { MCPServer } from '../../mcp-server.js';
 import { Logger } from '../logger.js';
 import { SessionManager } from '../session.js';
-import type { Element } from 'webdriverio';
+import type { Element, Browser } from 'webdriverio';
 
 type ExtendedLocatorStrategy = 
     | 'css selector'
@@ -74,8 +74,16 @@ export function registerElementTools(
                 }
             }
 
-            logger.debug('Element found successfully');
-            return element;
+            // Generate a unique ID for the element
+            const elementId = crypto.randomUUID();
+
+            // Add the data-wdio-id attribute to the element
+            await browser.execute((el: Element, id: string) => {
+                (el as any).setAttribute('data-wdio-id', id);
+            }, element, elementId);
+
+            logger.debug('Element found and marked with ID:', { elementId });
+            return { elementId };
         }
     });
 
@@ -146,7 +154,10 @@ export function registerElementTools(
                     await element.clearValue();
                     break;
                 case 'submit':
-                    await element.submit();
+                    await browser.execute((el: Element) => {
+                        const form = (el as any).closest('form');
+                        if (form) form.submit();
+                    }, element);
                     break;
                 default:
                     throw new Error(`Unsupported action: ${params.action}`);
@@ -154,6 +165,31 @@ export function registerElementTools(
 
             logger.debug('Element action completed successfully');
             return { success: true };
+        }
+    });
+
+    server.registerTool({
+        name: 'getText',
+        description: 'Get the text content of an element',
+        run: async (params: {
+            sessionId: string;
+            elementId: string;
+        }) => {
+            const session = sessionManager.getSession(params.sessionId);
+            if (!session) {
+                throw new Error(`No browser session found with ID: ${params.sessionId}`);
+            }
+
+            const browser = session.browser;
+            const element = await browser.$(`[data-wdio-id="${params.elementId}"]`);
+            
+            if (!element || !(await element.isExisting())) {
+                throw new Error(`Element not found with ID: ${params.elementId}`);
+            }
+
+            logger.debug('Getting element text');
+            const text = await element.getText();
+            return { text };
         }
     });
 } 

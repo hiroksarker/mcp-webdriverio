@@ -1,0 +1,28 @@
+{
+  "extends": "@istanbuljs/nyc-config-typescript",
+  "all": true,
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/**/*.d.ts",
+    "tests/**/*.ts"
+  ],
+  "reporter": [
+    "text",
+    "text-summary",
+    "html",
+    "lcov"
+  ],
+  "report-dir": "coverage",
+  "sourceMap": true,
+  "instrument": true,
+  "cache": false,
+  "check-coverage": true,
+  "statements": 80,
+  "branches": 80,
+  "functions": 80,
+  "lines": 80
+} 
