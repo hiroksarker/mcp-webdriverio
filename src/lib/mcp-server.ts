@@ -1,17 +1,33 @@
-import { z } from "zod";
-
-type Tool = {
-    name: string;
-    description: string;
-    run: (params: any) => Promise<any>;
-};
+import type { Tool } from './types.js';
 
 export class MCPServer {
     private tools: Tool[] = [];
+    private isRunning: boolean = false;
 
     constructor(private options: { name: string; version: string }) {}
 
+    async start() {
+        if (this.isRunning) {
+            return;
+        }
+        this.isRunning = true;
+        return this;
+    }
+
+    async stop() {
+        if (!this.isRunning) {
+            return;
+        }
+        this.isRunning = false;
+        // Clean up any resources
+        this.tools = [];
+    }
+
     async handleMessage(message: any) {
+        if (!this.isRunning) {
+            throw new Error('Server is not running');
+        }
+
         if (message.type === 'tool') {
             const tool = this.tools.find(t => t.name === message.name);
             if (!tool) {
@@ -28,16 +44,26 @@ export class MCPServer {
         throw new Error(`Unsupported message type: ${message.type}`);
     }
 
+    registerTool(tool: Tool) {
+        if (this.tools.some(t => t.name === tool.name)) {
+            throw new Error(`Tool '${tool.name}' is already registered`);
+        }
+        this.tools.push(tool);
+    }
+
+    getTool(name: string): Tool | undefined {
+        return this.tools.find(t => t.name === name);
+    }
+
+    getTools(): Tool[] {
+        return [...this.tools];
+    }
+
     async listen() {
-        // Initialize server
-        return this;
+        return this.start();
     }
 
     async close() {
-        // Cleanup server
-    }
-
-    registerTool(tool: Tool) {
-        this.tools.push(tool);
+        return this.stop();
     }
 } 
