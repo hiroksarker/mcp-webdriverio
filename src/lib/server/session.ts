@@ -60,3 +60,11 @@ export class SessionManager {
         }
     }
 } 
+
+export class BrowserFactory {
+    // Basic implementation
+}
+
+export function registerBrowserTools() {
+    // Basic implementation
+} 

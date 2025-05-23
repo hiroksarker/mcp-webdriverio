@@ -1,0 +1,9 @@
+"filename", "language", "TypeScript", "JSON with Comments", "comment", "blank", "total"
+"/Users/hsarker/Desktop/mcp-webdriverio/tests/index.ts", "TypeScript", 33, 0, 2, 4, 39
+"/Users/hsarker/Desktop/mcp-webdriverio/tests/pages/LoginPage.ts", "TypeScript", 49, 0, 1, 5, 55
+"/Users/hsarker/Desktop/mcp-webdriverio/tests/specs/accessibility.spec.ts", "TypeScript", 31, 0, 1, 6, 38
+"/Users/hsarker/Desktop/mcp-webdriverio/tests/specs/example.spec.ts", "TypeScript", 98, 0, 10, 14, 122
+"/Users/hsarker/Desktop/mcp-webdriverio/tests/specs/valid_credentials.spec.ts", "TypeScript", 8, 0, 0, 2, 10
+"/Users/hsarker/Desktop/mcp-webdriverio/tests/specs/visual.spec.ts", "TypeScript", 34, 0, 0, 8, 42
+"/Users/hsarker/Desktop/mcp-webdriverio/tests/tsconfig.json", "JSON with Comments", 0, 30, 0, 0, 30
+"Total", "-", 253, 30, 14, 39, 336

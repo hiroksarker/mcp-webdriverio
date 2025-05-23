@@ -1,10 +1,40 @@
 # MCP WebdriverIO
 
-A Message Control Protocol (MCP) server implementation for WebdriverIO, enabling remote browser automation through a message-based interface.
+A Message Control Protocol (MCP) server implementation for WebdriverIO, enabling remote browser automation through a message-based interface with advanced testing capabilities.
 
 ## Overview
 
-This project implements a Message Control Protocol server that wraps WebdriverIO functionality, allowing browser automation through a standardized message-based interface. It provides a set of tools for browser control, element interaction, and session management.
+This project implements a Message Control Protocol server that wraps WebdriverIO functionality, allowing browser automation through a standardized message-based interface. It provides a comprehensive set of tools for browser control, element interaction, session management, and advanced testing features like visual regression testing and multi-user testing.
+
+## Why MCP WebdriverIO?
+
+MCP WebdriverIO offers several advantages over traditional WebdriverIO implementations:
+
+1. **Message-Based Architecture**
+   - Decoupled client-server architecture
+   - Language-agnostic interface
+   - Easy integration with any system that can send/receive messages
+   - Perfect for microservices and distributed systems
+
+2. **Advanced Testing Features**
+   - Built-in visual regression testing
+   - Multi-user testing support
+   - Detailed Allure reporting
+   - Automatic screenshot capture for failed tests
+   - Cross-browser testing made easy
+
+3. **Enhanced Test Management**
+   - Centralized test execution
+   - Better resource management
+   - Improved test parallelization
+   - Detailed test reporting and analytics
+
+4. **Developer Experience**
+   - TypeScript-first approach
+   - Comprehensive type definitions
+   - Intuitive API design
+   - Extensive documentation
+   - Built-in best practices
 
 ## Features
 
@@ -15,6 +45,12 @@ This project implements a Message Control Protocol server that wraps WebdriverIO
 - Headless mode support
 - Session-based architecture
 - TypeScript support
+- Visual regression testing
+- Multi-user testing capabilities
+- Detailed Allure reporting
+- Automatic screenshot capture
+- Test parallelization
+- Page Object Model support
 
 ## Prerequisites
 
@@ -48,170 +84,125 @@ mcp-webdriverio/
 │   │   │   │   ├── elements.ts   # Element interaction tools
 │   │   │   │   └── navigation.ts # Navigation tools
 │   │   │   └── server.ts         # MCP server implementation
+│   │   ├── user/
+│   │   │   └── UserFlowManager.ts # Multi-user testing support
 │   │   └── types.ts              # TypeScript type definitions
 │   └── index.ts                  # Main entry point
 ├── tests/
 │   ├── pages/
 │   │   └── LoginPage.ts          # Page object for login page
-│   └── specs/
-│       └── example.spec.ts       # Example test suite
+│   ├── specs/
+│   │   ├── example.spec.ts       # Example test suite
+│   │   └── visual.spec.ts        # Visual regression tests
+│   └── multi-user/
+│       └── example.spec.ts       # Multi-user test examples
+├── screenshots/
+│   ├── baseline/                 # Baseline screenshots
+│   ├── current/                  # Current test screenshots
+│   └── diff/                     # Visual diff screenshots
+├── allure-results/              # Allure test results
 ├── package.json
 └── README.md
 ```
 
-## Available Tools
-
-### Browser Tools
-- `start_browser`: Start a new browser session
-  ```typescript
-  {
-    type: 'tool',
-    name: 'start_browser',
-    params: {
-      browserName: 'chrome' | 'firefox' | 'safari',
-      headless?: boolean
-    }
-  }
-  ```
-- `close_browser`: Close an existing browser session
-  ```typescript
-  {
-    type: 'tool',
-    name: 'close_browser',
-    params: {
-      sessionId: string
-    }
-  }
-  ```
-
-### Navigation Tools
-- `navigate`: Navigate to a URL
-  ```typescript
-  {
-    type: 'tool',
-    name: 'navigate',
-    params: {
-      sessionId: string,
-      url: string
-    }
-  }
-  ```
-- `get_url`: Get current page URL
-  ```typescript
-  {
-    type: 'tool',
-    name: 'get_url',
-    params: {
-      sessionId: string
-    }
-  }
-  ```
-
-### Element Tools
-- `find_element`: Find an element on the page
-  ```typescript
-  {
-    type: 'tool',
-    name: 'find_element',
-    params: {
-      sessionId: string,
-      by: 'css selector' | 'xpath' | 'id',
-      value: string,
-      timeout?: number
-    }
-  }
-  ```
-- `element_action`: Perform actions on elements
-  ```typescript
-  {
-    type: 'tool',
-    name: 'element_action',
-    params: {
-      sessionId: string,
-      elementId: string,
-      action: 'click' | 'type' | 'clear' | 'submit',
-      value?: string
-    }
-  }
-  ```
-- `getText`: Get text content of an element
-  ```typescript
-  {
-    type: 'tool',
-    name: 'getText',
-    params: {
-      sessionId: string,
-      elementId: string
-    }
-  }
-  ```
-
 ## Running Tests
 
-1. Start the MCP server:
+### Basic Test Execution
 ```bash
-npm start
-```
-
-2. Run the test suite:
-```bash
+# Run all tests
 npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests sequentially
+npm run test:sequential
 ```
 
-## Example Usage
+### Test Reporting
+```bash
+# Run tests and generate Allure report
+npm run test:report
 
-Here's a simple example of using the MCP server to automate a login flow:
+# Generate report from existing results
+npm run report:generate
+
+# Open the report
+npm run report:open
+
+# Clean test results and reports
+npm run report:clean
+```
+
+## Visual Regression Testing
+
+MCP WebdriverIO includes built-in visual regression testing capabilities:
 
 ```typescript
-// Start browser session
-const startResponse = await server.mcpServer.handleMessage({
-    type: 'tool',
-    name: 'start_browser',
-    params: {
+// Example visual regression test
+it('should compare the login page', async () => {
+    await browser.url('https://example.com/login');
+    
+    // Take and compare screenshots
+    await browser.saveScreen('login-page', { 
+        fullPage: true,
+        hideElements: ['.ads']
+    });
+    
+    const result = await browser.checkScreen('login-page', { 
+        fullPage: true,
+        hideElements: ['.ads']
+    });
+    
+    expect(result.misMatchPercentage).to.be.lessThan(0.1);
+});
+```
+
+## Multi-User Testing
+
+Support for testing multiple user interactions simultaneously:
+
+```typescript
+const flowManager = new UserFlowManager({
+    maxConcurrentUsers: 2,
+    defaultBrowserOptions: {
         browserName: 'chrome',
         headless: true
     }
 });
-const sessionId = startResponse.content[0].sessionId;
 
-// Navigate to login page
-await server.mcpServer.handleMessage({
-    type: 'tool',
-    name: 'navigate',
-    params: {
-        sessionId,
-        url: 'https://example.com/login'
-    }
-});
+// Create user sessions
+const user1 = await flowManager.createSession();
+const user2 = await flowManager.createSession();
 
-// Find and fill username
-const usernameResponse = await server.mcpServer.handleMessage({
-    type: 'tool',
-    name: 'find_element',
-    params: {
-        sessionId,
-        by: 'css selector',
-        value: '#username'
-    }
-});
-await server.mcpServer.handleMessage({
-    type: 'tool',
-    name: 'element_action',
-    params: {
-        sessionId,
-        elementId: usernameResponse.content[0].elementId,
-        action: 'type',
-        value: 'testuser'
-    }
-});
+// Define and execute user flows
+const steps: UserFlowStep[] = [
+    {
+        name: 'user1-login',
+        execute: async (session) => {
+            if (session.id === user1.id) {
+                await session.browser.$('#username').setValue('user1');
+                await session.browser.$('#password').setValue('pass1');
+                await session.browser.$('#submit').click();
+            }
+        }
+    },
+    // ... more steps
+];
 
-// Close browser session
-await server.mcpServer.handleMessage({
-    type: 'tool',
-    name: 'close_browser',
-    params: { sessionId }
-});
+await flowManager.executeFlow(steps);
 ```
+
+## Test Reporting
+
+MCP WebdriverIO uses Allure for detailed test reporting:
+
+- Test execution details
+- Step-by-step test actions
+- Screenshots (including visual regression)
+- Test metadata (feature, severity, test IDs)
+- Console logs
+- Test duration and status
 
 ## Best Practices
 
@@ -230,6 +221,18 @@ await server.mcpServer.handleMessage({
    - Keep selectors in page objects
    - Implement reusable actions in page objects
 
+4. **Visual Testing**
+   - Maintain baseline screenshots
+   - Use appropriate comparison settings
+   - Handle dynamic content appropriately
+   - Review visual diffs carefully
+
+5. **Multi-User Testing**
+   - Plan user interactions carefully
+   - Use appropriate timeouts
+   - Handle race conditions
+   - Clean up resources properly
+
 ## Contributing
 
 1. Fork the repository
@@ -246,4 +249,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - WebdriverIO team for the excellent automation framework
 - Selenium WebDriver for the WebDriver protocol
+- Allure Framework for test reporting
 - All contributors who have helped improve this project

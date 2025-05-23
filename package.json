@@ -1,6 +1,6 @@
 {
   "name": "mcp-webdriverio",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "A Message Control Protocol (MCP) server implementation for WebdriverIO, enabling remote browser automation through a message-based interface",
   "type": "module",
   "main": "dist/index.js",
@@ -15,13 +15,19 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "pretest": "npm run build",
-    "test": "NODE_OPTIONS='--loader ts-node/esm' mocha './tests/**/*.spec.ts'",
-    "test:watch": "mocha --require ts-node/register --watch './tests/**/*.spec.ts'",
+    "clean:reports": "rimraf allure-results allure-report screenshots/current screenshots/diff",
+    "test": "npm run clean:reports && wdio run wdio.conf.ts",
+    "test:watch": "npm run clean:reports && wdio run wdio.conf.ts --watch",
     "prepare": "npm run build",
     "prepublishOnly": "npm test",
     "preversion": "npm test",
     "version": "npm run build && git add -A dist",
-    "postversion": "git push && git push --tags"
+    "postversion": "git push && git push --tags",
+    "test:sequential": "npm run clean:reports && wdio run wdio.conf.ts --maxInstances=1",
+    "report:generate": "allure generate --clean allure-results",
+    "report:open": "allure open allure-report",
+    "report:clean": "rimraf allure-results allure-report",
+    "test:report": "npm run test && npm run report:generate && npm run report:open"
   },
   "keywords": [
     "webdriverio",
@@ -50,16 +56,28 @@
     "zod": "^3.25.7"
   },
   "devDependencies": {
+    "@axe-core/webdriverio": "^4.10.1",
     "@types/archiver": "^6.0.3",
     "@types/chai": "^4.3.4",
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
     "@types/mocha": "^10.0.1",
     "@types/uuid": "^9.0.1",
+    "@wdio/allure-reporter": "^9.14.0",
+    "@wdio/cli": "^8.0.0",
+    "@wdio/junit-reporter": "^9.14.0",
+    "@wdio/local-runner": "^8.0.0",
+    "@wdio/mocha-framework": "^8.0.0",
+    "@wdio/spec-reporter": "^8.0.0",
+    "@wdio/visual-service": "^8.0.2",
+    "allure-commandline": "^2.34.0",
     "chai": "^4.3.7",
     "mocha": "^10.2.0",
+    "rimraf": "^6.0.1",
     "ts-node": "^10.9.1",
-    "typescript": "^5.0.4"
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.0.4",
+    "webdriver-image-comparison": "^9.0.2"
   },
   "engines": {
     "node": ">=14.0.0"

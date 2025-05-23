@@ -5,6 +5,13 @@ import { MCPServerTransport } from '../lib/transport.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { MCPServer } from '../lib/mcp-server.js';
+import { registerBrowserTools } from '../lib/server/tools/browser.js';
+import { registerElementTools } from '../lib/server/tools/elements.js';
+import { registerNetworkTools } from '../lib/server/tools/network.js';
+import { Logger } from '../lib/server/logger.js';
+import { SessionManager } from '../lib/server/session.js';
+import * as http from 'http';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PID_FILE = path.join(__dirname, '..', '..', 'mcp-server.pid');
@@ -90,3 +97,31 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 
 export { main }; 
+
+// Example config: could be loaded from mcp-config.json
+const serverConfigs = [
+  { name: "BrowserServer", port: 3001, tools: ['browser', 'elements'] },
+  { name: "NetworkServer", port: 3002, tools: ['network'] }
+];
+
+for (const config of serverConfigs) {
+  const server = new MCPServer({ name: config.name, version: "1.0.0" });
+  const logger = new Logger();
+  const sessionManager = new SessionManager(logger);
+
+  // Dynamically register tools
+  for (const tool of config.tools) {
+    if (tool === 'browser') registerBrowserTools(server, logger, sessionManager);
+    if (tool === 'elements') registerElementTools(server, logger, sessionManager);
+    if (tool === 'network') registerNetworkTools(server, logger, sessionManager);
+    // Add more tool types as needed
+  }
+
+  // Start HTTP server for this MCPServer
+  const httpServer = http.createServer(async (req, res) => {
+    // ...handle incoming MCP protocol messages, route to server.handleMessage()
+  });
+  httpServer.listen(config.port, () => {
+    console.log(`${config.name} listening on port ${config.port}`);
+  });
+} 
