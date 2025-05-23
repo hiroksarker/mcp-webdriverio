@@ -41,3 +41,5 @@ export class Logger {
         }
     }
 } 
+
+export default new Logger();  // Export a singleton instance 

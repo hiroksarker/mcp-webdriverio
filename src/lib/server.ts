@@ -5,6 +5,8 @@ import type { Options } from '@wdio/types';
 import { remote } from 'webdriverio';
 import { z } from 'zod';
 import { CustomEventEmitter } from './events.js';
+import type { BaseServer, TestRunnerOptions } from './types.js';
+import { TestRunner } from './test/runner.js';
 
 // MCP Protocol Types
 const CommandSchema = z.object({
@@ -16,9 +18,83 @@ const CommandSchema = z.object({
 
 type Command = z.infer<typeof CommandSchema>;
 
-export class WebdriverioMCPServer extends CustomEventEmitter {
+type BrowserType = 'chrome' | 'firefox' | 'safari' | 'edge' | 'opera';
+
+interface BrowserOptions {
+    headless?: boolean;
+    args?: string[];
+}
+
+export function buildCapabilities(browserName: BrowserType, options: BrowserOptions = {}) {
+    const { headless = true, args = [] } = options;
+
+    switch (browserName) {
+        case 'chrome':
+            return {
+                browserName: 'chrome',
+                'goog:chromeOptions': {
+                    args: [
+                        ...(headless ? ['--headless=new', '--disable-gpu'] : []),
+                        '--no-sandbox',
+                        '--disable-dev-shm-usage',
+                        ...args
+                    ]
+                }
+            };
+
+        case 'firefox':
+            return {
+                browserName: 'firefox',
+                'moz:firefoxOptions': {
+                    args: [
+                        ...(headless ? ['-headless'] : []),
+                        ...args
+                    ]
+                }
+            };
+
+        case 'safari':
+            return {
+                browserName: 'safari',
+                'safari:options': {
+                    automatic: headless,
+                    ...args.length ? { args } : {}
+                }
+            };
+
+        case 'edge':
+            return {
+                browserName: 'MicrosoftEdge',
+                'ms:edgeOptions': {
+                    args: [
+                        ...(headless ? ['--headless'] : []),
+                        '--disable-gpu',
+                        ...args
+                    ]
+                }
+            };
+
+        case 'opera':
+            return {
+                browserName: 'opera',
+                'opera:options': {
+                    args: [
+                        ...(headless ? ['--headless'] : []),
+                        '--disable-gpu',
+                        ...args
+                    ]
+                }
+            };
+
+        default:
+            throw new Error(`Unsupported browser: ${browserName}`);
+    }
+}
+
+export class WebdriverioMCPServer extends CustomEventEmitter implements BaseServer {
     private driver: Browser | null = null;
     private isConnected: boolean = false;
+    private testRunner?: TestRunner;
 
     constructor() {
         super();
@@ -31,9 +107,7 @@ export class WebdriverioMCPServer extends CustomEventEmitter {
     }
 
     async connect(options: Options.WebdriverIO = {
-        capabilities: {
-            browserName: 'chrome'
-        }
+        capabilities: buildCapabilities('chrome', { headless: true })
     }) {
         try {
             this.driver = await remote(options);
@@ -41,7 +115,8 @@ export class WebdriverioMCPServer extends CustomEventEmitter {
             this.emit('connected');
             return true;
         } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.error('WebdriverIO connect error:', error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
             this.emit('error', `Failed to connect: ${errorMessage}`);
             return false;
         }
@@ -147,6 +222,62 @@ export class WebdriverioMCPServer extends CustomEventEmitter {
         }
         this.driver = null;
         this.isConnected = false;
+    }
+
+    getTestRunner(options?: TestRunnerOptions): TestRunner {
+        if (!this.testRunner) {
+            this.testRunner = new TestRunner(this, options);
+        }
+        return this.testRunner;
+    }
+
+    async disconnect(): Promise<void> {
+        await this.cleanup();
+    }
+
+    async executeCommand(command: { type: string; selector: string; value?: string }) {
+        if (!this.driver) throw new Error('Browser not connected');
+        
+        const element = await this.driver.$(command.selector);
+        switch (command.type) {
+            case 'type':
+                await element.setValue(command.value || '');
+                break;
+            case 'click':
+                await element.click();
+                break;
+            case 'getText':
+                return await element.getText();
+        }
+    }
+
+    isBrowserConnected(): boolean {
+        return this.isConnected;
+    }
+
+    async createSession(options: { browserName: string; headless?: boolean }): Promise<string> {
+        if (!this.driver) throw new Error('Browser not connected');
+        // WebdriverIO doesn't need to create a new session, it's already in one
+        // Just return a unique identifier for this session
+        return `session_${Date.now()}`;
+    }
+
+    async closeSession(sessionId: string): Promise<void> {
+        if (!this.driver) return;
+        await this.driver.deleteSession();
+    }
+
+    getSupportedBrowsers(): BrowserType[] {
+        return ['chrome', 'firefox', 'safari', 'edge', 'opera'];
+    }
+
+    isBrowserSupported(browserName: string): browserName is BrowserType {
+        return this.getSupportedBrowsers().includes(browserName as BrowserType);
+    }
+
+    public getDriver() {
+        if (!this.driver) throw new Error('WebdriverIO driver not initialized');
+        return this.driver;
     }
 }
 

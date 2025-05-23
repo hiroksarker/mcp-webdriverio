@@ -1,7 +1,8 @@
 import { Worker } from 'worker_threads';
 import { cpus } from 'os';
-import { Logger } from '../logger.js';
-import { BrowserType } from '../browser/types.js';
+import type { Logger } from '../logger.js';
+import logger from '../logger.js';
+import { BrowserType } from '../server/browser/types.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
