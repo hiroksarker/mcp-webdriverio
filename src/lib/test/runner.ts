@@ -16,4 +16,26 @@ export class TestRunner {
     async runTests(specs: string[]): Promise<any[]> {
         return [];  // Basic implementation
     }
+
+    async compareVisual(name: string, tolerance: number = 0.1): Promise<{
+        match: boolean;
+        diffPercentage: number;
+        diffPath?: string;
+    }> {
+        if (!('compareScreenshots' in this.server)) {
+            throw new Error('Server does not support visual regression testing');
+        }
+
+        // @ts-ignore - We know the server has this method
+        return await this.server.compareScreenshots(name, tolerance);
+    }
+
+    async saveVisualBaseline(name: string): Promise<string> {
+        if (!('saveScreenshot' in this.server)) {
+            throw new Error('Server does not support visual regression testing');
+        }
+
+        // @ts-ignore - We know the server has this method
+        return await this.server.saveScreenshot(name, true);
+    }
 }

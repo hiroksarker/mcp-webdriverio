@@ -1,12 +1,20 @@
 #!/usr/bin/env node
 
-import type { Browser } from 'webdriverio';
+import { remote, Browser } from 'webdriverio';
 import type { Options } from '@wdio/types';
-import { remote } from 'webdriverio';
 import { z } from 'zod';
 import { CustomEventEmitter } from './events.js';
-import type { BaseServer, TestRunnerOptions } from './types.js';
+import type { TestRunnerOptions, BaseServer } from './test/types.js';
 import { TestRunner } from './test/runner.js';
+import { join } from 'path';
+import type { BrowserType } from './server/browser/types.js';
+import { BrowserFactory } from './server/browser/factory.js';
+import { Logger } from './server/logger.js';
+import type { CommandEvent } from './events.js';
+import { promises as fs } from 'fs';
+import { PNG } from 'pngjs';
+import pixelmatch from 'pixelmatch';
+import html2canvas from 'html2canvas';
 
 // MCP Protocol Types
 const CommandSchema = z.object({
@@ -17,8 +25,6 @@ const CommandSchema = z.object({
 });
 
 type Command = z.infer<typeof CommandSchema>;
-
-type BrowserType = 'chrome' | 'firefox' | 'safari' | 'edge' | 'opera';
 
 interface BrowserOptions {
     headless?: boolean;
@@ -74,31 +80,48 @@ export function buildCapabilities(browserName: BrowserType, options: BrowserOpti
                 }
             };
 
-        case 'opera':
-            return {
-                browserName: 'opera',
-                'opera:options': {
-                    args: [
-                        ...(headless ? ['--headless'] : []),
-                        '--disable-gpu',
-                        ...args
-                    ]
-                }
-            };
-
         default:
             throw new Error(`Unsupported browser: ${browserName}`);
     }
+}
+
+// Define visual regression service type
+type VisualRegressionService = {
+    baselineFolder: string;
+    formatImageName: string;
+    screenshotPath: string;
+    savePerInstance: boolean;
+    autoSaveBaseline: boolean;
+};
+
+// Extend WebdriverIO options to include services
+interface ExtendedWebdriverIOOptions extends Options.WebdriverIO {
+    services?: Array<[string, any]>;
 }
 
 export class WebdriverioMCPServer extends CustomEventEmitter implements BaseServer {
     private driver: Browser | null = null;
     private isConnected: boolean = false;
     private testRunner?: TestRunner;
+    private browserFactory: BrowserFactory;
+    private logger: Logger;
+    private sessionId: string = '';
+    private screenshotPath: string;
+    private baselinePath: string;
 
     constructor() {
         super();
+        this.logger = new Logger();
+        this.browserFactory = new BrowserFactory(this.logger);
+        this.screenshotPath = join(process.cwd(), './screenshots');
+        this.baselinePath = join(this.screenshotPath, 'baseline');
         this.setupEventHandlers();
+        this.ensureDirectories();
+    }
+
+    private async ensureDirectories() {
+        await fs.mkdir(this.screenshotPath, { recursive: true });
+        await fs.mkdir(this.baselinePath, { recursive: true });
     }
 
     private setupEventHandlers() {
@@ -106,12 +129,127 @@ export class WebdriverioMCPServer extends CustomEventEmitter implements BaseServ
         this.on('disconnect', this.cleanup.bind(this));
     }
 
-    async connect(options: Options.WebdriverIO = {
-        capabilities: buildCapabilities('chrome', { headless: true })
-    }) {
+    private async getDefaultOptions(): Promise<ExtendedWebdriverIOOptions> {
+        return {
+            capabilities: await this.browserFactory.getCapabilities('chrome', { headless: true }),
+        };
+    }
+
+    async saveScreenshot(name: string, baseline: boolean = false): Promise<string> {
+        if (!this.driver) throw new Error('Browser not connected');
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `${name}-${timestamp}.png`;
+        const path = join(baseline ? this.baselinePath : this.screenshotPath, filename);
+        
+        // Inject html2canvas into the page
+        await this.driver.execute(() => {
+            return new Promise<void>((resolve, reject) => {
+                if ((window as any).html2canvas) {
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('Failed to load html2canvas'));
+                document.head.appendChild(script);
+            });
+        });
+        
+        // Take screenshot using html2canvas
+        const screenshot = await this.driver.execute(() => {
+            return new Promise<string>((resolve, reject) => {
+                const html2canvas = (window as any).html2canvas;
+                if (!html2canvas) {
+                    reject(new Error('html2canvas not loaded'));
+                    return;
+                }
+                
+                // Hide ads before taking screenshot
+                const ads = document.querySelectorAll('.ads');
+                ads.forEach((ad: Element) => {
+                    (ad as HTMLElement).style.display = 'none';
+                });
+                
+                html2canvas(document.body, {
+                    useCORS: true,
+                    allowTaint: true,
+                    logging: false,
+                    background: '#ffffff',
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                }).then((canvas: HTMLCanvasElement) => {
+                    resolve(canvas.toDataURL('image/png').split(',')[1]);
+                }).catch(reject);
+            });
+        });
+        
+        await fs.writeFile(path, screenshot, 'base64');
+        return path;
+    }
+
+    async compareScreenshots(name: string, tolerance: number = 0.1): Promise<{ 
+        match: boolean; 
+        diffPercentage: number;
+        diffPath?: string;
+    }> {
+        const baselinePath = join(this.baselinePath, `${name}.png`);
+        const screenshotPath = join(this.screenshotPath, `${name}.png`);
+        
+        // Check if baseline exists
         try {
-            this.driver = await remote(options);
+            await fs.access(baselinePath);
+        } catch {
+            // If baseline doesn't exist, save current screenshot as baseline
+            await this.saveScreenshot(name, true);
+            return { match: true, diffPercentage: 0 };
+        }
+        
+        // Read both images
+        const baseline = PNG.sync.read(await fs.readFile(baselinePath));
+        const screenshot = PNG.sync.read(await fs.readFile(screenshotPath));
+        
+        // Create diff image
+        const { width, height } = baseline;
+        const diff = new PNG({ width, height });
+        
+        // Compare images
+        const diffPixels = pixelmatch(
+            baseline.data,
+            screenshot.data,
+            diff.data,
+            width,
+            height,
+            {
+                threshold: tolerance,
+                includeAA: true,
+                alpha: 0.5,
+                diffColor: [255, 0, 0],
+                diffColorAlt: [0, 0, 255]
+            }
+        );
+        
+        const diffPercentage = (diffPixels / (width * height)) * 100;
+        const match = diffPercentage <= tolerance * 100;
+        
+        // Save diff image if there's a mismatch
+        let diffPath: string | undefined;
+        if (!match) {
+            diffPath = join(this.screenshotPath, `${name}-diff.png`);
+            await fs.writeFile(diffPath, PNG.sync.write(diff));
+        }
+        
+        return { match, diffPercentage, diffPath };
+    }
+
+    async connect(options?: ExtendedWebdriverIOOptions) {
+        try {
+            const defaultOptions = await this.getDefaultOptions();
+            this.driver = await remote(options || defaultOptions);
             this.isConnected = true;
+            this.sessionId = `session_${Date.now()}`; // Generate a unique session ID
             this.emit('connected');
             return true;
         } catch (error: unknown) {
@@ -122,7 +260,7 @@ export class WebdriverioMCPServer extends CustomEventEmitter implements BaseServ
         }
     }
 
-    private async handleCommand(command: Command) {
+    private async handleCommand(command: CommandEvent['command']) {
         if (!this.driver || !this.isConnected) {
             throw new Error('Browser not connected');
         }
@@ -156,24 +294,18 @@ export class WebdriverioMCPServer extends CustomEventEmitter implements BaseServ
                     break;
                     
                 case 'waitForDisplayed':
-                    await element.waitForDisplayed({ 
-                        timeout: command.timeout || 5000,
-                        timeoutMsg: `Element ${command.selector} not displayed after ${command.timeout || 5000}ms`
-                    });
+                    await element.waitForDisplayed({ timeout: command.timeout || 5000 });
                     break;
                     
                 default:
-                    throw new Error(`Unknown command type: ${command.type}`);
+                    throw new Error(`Unsupported command type: ${command.type}`);
             }
             
             this.emit('commandComplete', { success: true });
         } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.emit('error', `Command failed: ${errorMessage}`);
-            this.emit('commandComplete', { 
-                success: false, 
-                error: errorMessage 
-            });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.emit('commandComplete', { success: false, error: errorMessage });
+            throw error;
         }
     }
 
@@ -255,11 +387,20 @@ export class WebdriverioMCPServer extends CustomEventEmitter implements BaseServ
         return this.isConnected;
     }
 
-    async createSession(options: { browserName: string; headless?: boolean }): Promise<string> {
-        if (!this.driver) throw new Error('Browser not connected');
-        // WebdriverIO doesn't need to create a new session, it's already in one
-        // Just return a unique identifier for this session
-        return `session_${Date.now()}`;
+    async createSession(options: { browserName: BrowserType; headless?: boolean }): Promise<string> {
+        if (!this.isBrowserSupported(options.browserName)) {
+            throw new Error(`Unsupported browser: ${options.browserName}`);
+        }
+
+        const capabilities = await this.browserFactory.getCapabilities(options.browserName, {
+            headless: options.headless ?? true
+        });
+
+        if (!this.driver) {
+            await this.connect({ capabilities });
+        }
+
+        return this.sessionId;
     }
 
     async closeSession(sessionId: string): Promise<void> {
@@ -268,7 +409,7 @@ export class WebdriverioMCPServer extends CustomEventEmitter implements BaseServ
     }
 
     getSupportedBrowsers(): BrowserType[] {
-        return ['chrome', 'firefox', 'safari', 'edge', 'opera'];
+        return this.browserFactory.getAvailableBrowsers();
     }
 
     isBrowserSupported(browserName: string): browserName is BrowserType {

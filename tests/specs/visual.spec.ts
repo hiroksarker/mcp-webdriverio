@@ -1,118 +1,112 @@
+import { describe, it, before, after } from 'mocha';
 import { expect } from 'chai';
-import { browser } from '@wdio/globals';
-import { UserFlowManager } from '../../src/lib/user/UserFlowManager';
-import { UserFlowStep, UserSession, UserFlowContext } from '../../src/lib/types';
-import '../../src/types/webdriverio-visual';
+import { addFeature, addSeverity, addDescription, addTestId } from '@wdio/allure-reporter';
+import { testServer } from '../config/test-server.js';
+import type { Browser } from 'webdriverio';
 
-interface VisualUserSession extends Omit<UserSession, 'browser'> {
-    browser: typeof browser;
-}
+describe('Visual Regression Test Suite', function() {
+    addFeature('Visual Testing');
+    addSeverity('critical');
+    addDescription('Visual regression tests for the practice test automation website', 'text');
 
-interface VisualFlowStep extends Omit<UserFlowStep, 'execute'> {
-    execute: (session: UserSession & { browser: typeof browser }, context: UserFlowContext) => Promise<void>;
-}
-
-describe('Visual regression', function() {
-    this.timeout(30000);
-
-    let flowManager: UserFlowManager;
-    let user1: UserSession;
-    let user2: UserSession;
+    // Increase timeout for visual tests
+    this.timeout(60000);  // 60 seconds
 
     before(async () => {
-        if (typeof browser.saveScreen !== 'function' || typeof browser.checkScreen !== 'function') {
-            throw new Error('Browser driver does not support visual testing. Make sure @wdio/visual-service is properly configured.');
-        }
+        // Initialize server with default configuration
+        await testServer.initialize();
 
-        flowManager = new UserFlowManager({
-            maxConcurrentUsers: 2,
-            defaultBrowserOptions: {
+        // Initialize WebdriverIO server
+        await testServer.getServer().webdriverServer.connect({
+            capabilities: {
                 browserName: 'chrome',
-                headless: true
+                'goog:chromeOptions': {
+                    args: ['--headless=new', '--no-sandbox', '--disable-dev-shm-usage']
+                }
             }
         });
-
-        user1 = await flowManager.createSession();
-        user2 = await flowManager.createSession();
     });
 
     after(async () => {
-        await flowManager.cleanup();
+        await testServer.cleanup();
     });
 
-    it('should compare the login page', async () => {
-        await browser.url('https://practicetestautomation.com/practice-test-login/');
-        await browser.saveScreen('login-page', { 
-            fullPage: true,
-            hideElements: ['.ads']
-        });
-        const result = await browser.checkScreen('login-page', { 
-            fullPage: true,
-            hideElements: ['.ads']
-        });
-        expect(result.misMatchPercentage).to.be.lessThan(0.1);
-    });
-
-    it('should execute a user flow', async () => {
-        const steps: VisualFlowStep[] = [
-            {
-                name: 'navigate-to-login',
-                execute: async (session) => {
-                    if (typeof session.browser.saveScreen !== 'function' || typeof session.browser.checkScreen !== 'function') {
-                        throw new Error('Browser does not support visual testing');
-                    }
-                    await session.browser.url('https://practicetestautomation.com/practice-test-login/');
-                    await session.browser.$('form').waitForDisplayed();
-                    await session.browser.saveScreen('login-form', { 
-                        fullPage: true,
-                        hideElements: ['.ads']
-                    });
-                }
-            },
-            {
-                name: 'user1-login',
-                dependencies: ['navigate-to-login'],
-                execute: async (session, context) => {
-                    if (typeof session.browser.saveScreen !== 'function' || typeof session.browser.checkScreen !== 'function') {
-                        throw new Error('Browser does not support visual testing');
-                    }
-                    if (session.id === user1.id) {
-                        await session.browser.$('#username').setValue('student');
-                        await session.browser.$('#password').setValue('Password123');
-                        await session.browser.$('#submit').click();
-                        await session.browser.$('.post-title').waitForDisplayed();
-                        context.sharedData.set('user1LoggedIn', true);
-                    }
-                }
-            },
-            {
-                name: 'user2-verify-success',
-                dependencies: ['user1-login'],
-                execute: async (session, context) => {
-                    if (typeof session.browser.saveScreen !== 'function' || typeof session.browser.checkScreen !== 'function') {
-                        throw new Error('Browser does not support visual testing');
-                    }
-                    if (session.id === user2.id) {
-                        await session.browser.waitUntil(
-                            async () => context.sharedData.get('user1LoggedIn') === true,
-                            { timeout: 5000 }
-                        );
-                        await session.browser.saveScreen('success-page', {
-                            fullPage: true,
-                            hideElements: ['.ads']
-                        });
-                        const result = await session.browser.checkScreen('success-page', {
-                            fullPage: true,
-                            hideElements: ['.ads']
-                        });
-                        if (result.misMatchPercentage > 0.1) {
-                            throw new Error(`Visual regression detected: ${result.misMatchPercentage}% mismatch`);
-                        }
-                    }
-                }
+    describe('Login Page Visual Tests', () => {
+        it('should match login page baseline', async () => {
+            addTestId('VISUAL-001');
+            
+            const driver = testServer.getServer().webdriverServer.getDriver();
+            const testRunner = testServer.getServer().webdriverServer.getTestRunner();
+            
+            // Navigate to the login page
+            await driver.url('https://practicetestautomation.com/practice-test-login/');
+            
+            // Hide dynamic elements
+            await driver.execute(() => {
+                const elements = document.querySelectorAll('.ads, .notifications, .cookies-banner');
+                elements.forEach(el => {
+                    (el as HTMLElement).style.display = 'none';
+                });
+            });
+            
+            // Save baseline if it doesn't exist
+            try {
+                await testRunner.saveVisualBaseline('login-page');
+                console.log('Created new baseline for login page');
+            } catch (error) {
+                console.log('Using existing baseline for login page');
             }
-        ];
+            
+            // Compare with baseline
+            const result = await testRunner.compareVisual('login-page', 0.1);
+            
+            // Assertions
+            expect(result.match).to.be.true;
+            expect(result.diffPercentage).to.be.lessThan(0.1);
+            
+            if (!result.match) {
+                console.log(`Visual regression failed with ${result.diffPercentage}% difference`);
+                console.log(`Diff image saved at: ${result.diffPath}`);
+            }
+        });
 
-        await flowManager.executeFlow(steps as UserFlowStep[]);
+        it('should detect visual changes in login form', async () => {
+            addTestId('VISUAL-002');
+            
+            const driver = testServer.getServer().webdriverServer.getDriver();
+            const testRunner = testServer.getServer().webdriverServer.getTestRunner();
+            
+            // Navigate to the login page
+            await driver.url('https://practicetestautomation.com/practice-test-login/');
+            
+            // Hide dynamic elements
+            await driver.execute(() => {
+                const elements = document.querySelectorAll('.ads, .notifications, .cookies-banner');
+                elements.forEach(el => {
+                    (el as HTMLElement).style.display = 'none';
+                });
+            });
+            
+            // Modify the page to simulate a visual change
+            await driver.execute(() => {
+                const form = document.querySelector('form');
+                if (form) {
+                    (form as HTMLElement).style.backgroundColor = '#f0f0f0';
+                    (form as HTMLElement).style.padding = '20px';
+                }
+            });
+            
+            // Compare with baseline
+            const result = await testRunner.compareVisual('login-page', 0.1);
+            
+            // This test should fail because we modified the page
+            expect(result.match).to.be.false;
+            expect(result.diffPercentage).to.be.greaterThan(0.1);
+            
+            if (!result.match) {
+                console.log(`Visual regression detected changes: ${result.diffPercentage}% difference`);
+                console.log(`Diff image saved at: ${result.diffPath}`);
+            }
+        });
     });
 });

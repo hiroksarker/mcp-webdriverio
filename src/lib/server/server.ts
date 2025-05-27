@@ -5,14 +5,24 @@ import { registerBrowserTools } from './tools/browser.js';
 import { registerNetworkTools } from './tools/network.js';
 import { registerElementTools } from './tools/elements.js';
 import { WebdriverioMCPServer } from '../server.js';
+import { globalSettings, type GlobalSettings } from './global-settings.js';
 
 export class Server {
     private server: MCPServer;
     private logger: Logger;
     private sessionManager: SessionManager;
     private _webdriverServer: WebdriverioMCPServer;
+    private settings: GlobalSettings;
 
-    constructor(port: number = 3000) {
+    constructor(settings: Partial<GlobalSettings> = {}) {
+        this.settings = {
+            ...globalSettings,
+            mcp: {
+                ...globalSettings.mcp,
+                ...settings.mcp
+            }
+        };
+        
         this.logger = new Logger();
         this.server = new MCPServer({
             name: "MCP WebdriverIO Server",
@@ -31,6 +41,18 @@ export class Server {
         return this._webdriverServer;
     }
 
+    get cursorConfig() {
+        return this.settings.mcp.cursor;
+    }
+
+    get browserConfig() {
+        return this.settings.mcp.browser;
+    }
+
+    get serverConfig() {
+        return this.settings.mcp.server;
+    }
+
     private initializeTools() {
         registerBrowserTools(this.server, this.logger, this.sessionManager);
         registerNetworkTools(this.server, this.logger, this.sessionManager);
@@ -39,7 +61,7 @@ export class Server {
 
     async listen() {
         await this.server.listen();
-        this.logger.info('Server started');
+        this.logger.info(`Server started on ${this.settings.mcp.server.host}:${this.settings.mcp.server.port}`);
         return this;
     }
 

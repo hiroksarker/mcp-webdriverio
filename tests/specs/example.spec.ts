@@ -1,14 +1,13 @@
 import { describe, it, before, after, beforeEach } from 'mocha';
 import { expect } from 'chai';
-import { browser } from '@wdio/globals';
 import { addFeature, addSeverity, addDescription, addStep, addIssue, addTestId, Status } from '@wdio/allure-reporter';
-import { Server } from '../../src/lib/server/server.js';
 import { LoginPage } from '../pages/LoginPage.js';
 import { buildCapabilities } from '../../src/lib/server.js';
-import type { MCPServer } from '../../src/lib/mcp-server.js';
+import { testServer } from '../config/test-server.js';
+import type { Browser, Element } from 'webdriverio';
 
 // Add type for visual regression commands
-type VisualBrowser = import('webdriverio').Browser & {
+type VisualBrowser = Browser & {
     saveScreen: (name: string, opts?: any) => Promise<void>;
     checkScreen: (name: string, opts?: any) => Promise<{ misMatchPercentage: number }>;
 };
@@ -22,6 +21,13 @@ declare global {
   }
 }
 
+// Helper function to get and wait for element
+async function getElement(driver: Browser, selector: string): Promise<Element> {
+    const element = await driver.$(selector);
+    await element.waitForDisplayed();
+    return element;
+}
+
 // Set timeout for all tests in this suite
 describe('MCP Login Test Suite', function() {
     // Add feature and severity to the test suite
@@ -32,22 +38,18 @@ describe('MCP Login Test Suite', function() {
     // Increase timeout for this suite
     this.timeout(30000);  // 30 seconds
 
-    // Explicitly declare types following the MCP protocol
-    let server: Server;
-    let sessionId: string;
     let loginPage: LoginPage;
 
     before(async () => {
-        // Create and start server
-        server = new Server(3000);
-        await server.listen();
+        // Initialize server with default configuration
+        await testServer.initialize();
 
         // Initialize WebdriverIO server
-        await server.webdriverServer.connect({
+        await testServer.getServer().webdriverServer.connect({
             capabilities: buildCapabilities('chrome', { headless: true })
         });
 
-        const response = await server.mcpServer.handleMessage({
+        const response = await testServer.getServer().mcpServer.handleMessage({
             type: 'tool',
             name: 'start_browser',
             params: {
@@ -59,41 +61,37 @@ describe('MCP Login Test Suite', function() {
         if (!response.content || !response.content[0]?.sessionId) {
             throw new Error('Failed to start browser session');
         }
-        sessionId = response.content[0].sessionId;
-        console.log('Started browser session:', sessionId);
-        loginPage = new LoginPage(server.mcpServer, sessionId);
+        console.log('Started browser session:', response.content[0].sessionId);
+        loginPage = new LoginPage(testServer.getServer().mcpServer, response.content[0].sessionId);
     });
 
     after(async () => {
-        // Cleanup: close browser session and stop server
-        if (sessionId) {
-            await server.mcpServer.handleMessage({
-                type: 'tool',
-                name: 'close_browser',
-                params: { sessionId }
-            });
-        }
-        await server.webdriverServer.disconnect();
-        await server.close();
+        await testServer.cleanup();
     });
 
     describe('Login Flow', () => {
         beforeEach(async () => {
-            await browser.url('https://practicetestautomation.com/practice-test-login/');
+            const driver = testServer.getServer().webdriverServer.getDriver() as unknown as Browser;
+            await driver.url('https://practicetestautomation.com/practice-test-login/');
         });
 
         it('should successfully login with valid credentials', async () => {
             addTestId('LOGIN-001');
             addIssue('LOGIN-123');
             
-            // Enter valid credentials
-            await browser.$('#username').setValue('student');
-            await browser.$('#password').setValue('Password123');
-            await browser.$('#submit').click();
+            const driver = testServer.getServer().webdriverServer.getDriver() as unknown as Browser;
+            
+            // Get and interact with elements
+            const usernameInput = await getElement(driver, '#username');
+            const passwordInput = await getElement(driver, '#password');
+            const submitButton = await getElement(driver, '#submit');
+            
+            await usernameInput.setValue('student');
+            await passwordInput.setValue('Password123');
+            await submitButton.click();
             
             // Verify successful login
-            const successElement = await browser.$('.post-title');
-            await successElement.waitForDisplayed();
+            const successElement = await getElement(driver, '.post-title');
             const successText = await successElement.getText();
             expect(successText).to.equal('Logged In Successfully');
         });
@@ -102,14 +100,19 @@ describe('MCP Login Test Suite', function() {
             addTestId('LOGIN-002');
             addIssue('LOGIN-124');
             
-            // Enter invalid credentials
-            await browser.$('#username').setValue('invalid');
-            await browser.$('#password').setValue('wrong');
-            await browser.$('#submit').click();
+            const driver = testServer.getServer().webdriverServer.getDriver() as unknown as Browser;
+            
+            // Get and interact with elements
+            const usernameInput = await getElement(driver, '#username');
+            const passwordInput = await getElement(driver, '#password');
+            const submitButton = await getElement(driver, '#submit');
+            
+            await usernameInput.setValue('invalid');
+            await passwordInput.setValue('wrong');
+            await submitButton.click();
 
             // Verify error message
-            const errorElement = await browser.$('#error');
-            await errorElement.waitForDisplayed();
+            const errorElement = await getElement(driver, '#error');
             const errorMessage = await errorElement.getText();
             expect(errorMessage).to.equal('Your username is invalid!');
         });
@@ -121,19 +124,36 @@ describe('MCP Login Test Suite', function() {
             addIssue('VISUAL-123');
             addDescription('Visual regression test for the login page', 'text');
             
-            // Navigate and take screenshot
-            await browser.url('https://practicetestautomation.com/practice-test-login/');
-            await browser.saveScreen('login-page', { 
-                fullPage: true,
-                hideElements: ['.ads']
+            const driver = testServer.getServer().webdriverServer.getDriver();
+            const testRunner = testServer.getServer().webdriverServer.getTestRunner();
+            
+            // Navigate to the page
+            await driver.url('https://practicetestautomation.com/practice-test-login/');
+            
+            // Hide ads before taking screenshot
+            await driver.execute(() => {
+                const ads = document.querySelectorAll('.ads');
+                ads.forEach(ad => {
+                    (ad as HTMLElement).style.display = 'none';
+                });
             });
             
+            // Save baseline if it doesn't exist
+            try {
+                await testRunner.saveVisualBaseline('login-page');
+            } catch (error) {
+                console.log('Baseline already exists, proceeding with comparison');
+            }
+            
             // Compare screenshot
-            const result = await browser.checkScreen('login-page', { 
-                fullPage: true,
-                hideElements: ['.ads']
-            });
-            expect(result.misMatchPercentage).to.be.lessThan(0.1);
+            const result = await testRunner.compareVisual('login-page', 0.1);
+            expect(result.match).to.be.true;
+            expect(result.diffPercentage).to.be.lessThan(0.1);
+            
+            if (!result.match) {
+                console.log(`Visual regression failed with ${result.diffPercentage}% difference`);
+                console.log(`Diff image saved at: ${result.diffPath}`);
+            }
         });
     });
 });

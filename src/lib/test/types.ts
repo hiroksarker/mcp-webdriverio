@@ -1,8 +1,5 @@
-export interface BaseServer {
-    connect(options: any): Promise<boolean>;
-    disconnect(): Promise<void>;
-    emit(event: string, ...args: any[]): void;
-}
+import type { Browser } from 'webdriverio';
+import type { BrowserType } from '../server/browser/types.js';
 
 export interface TestRunnerOptions {
     maxWorkers?: number;
@@ -34,4 +31,25 @@ export interface TestResult {
         name: string;
         version: string;
     };
+}
+
+export interface BaseServer {
+    connect(options?: any): Promise<boolean>;
+    disconnect(): Promise<void>;
+    executeCommand(command: { type: string; selector: string; value?: string }): Promise<any>;
+    isBrowserConnected(): boolean;
+    createSession(options: { browserName: BrowserType; headless?: boolean }): Promise<string>;
+    closeSession(sessionId: string): Promise<void>;
+    getSupportedBrowsers(): BrowserType[];
+    isBrowserSupported(browserName: string): browserName is BrowserType;
+    getDriver(): Browser;
+    getTestRunner(options?: TestRunnerOptions): any;
+
+    // Visual regression methods
+    saveScreenshot(name: string, baseline?: boolean): Promise<string>;
+    compareScreenshots(name: string, tolerance?: number): Promise<{
+        match: boolean;
+        diffPercentage: number;
+        diffPath?: string;
+    }>;
 }

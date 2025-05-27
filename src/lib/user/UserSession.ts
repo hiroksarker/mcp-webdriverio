@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { UserSession as IUserSession } from '../types';
-import type { browser } from '@wdio/globals';
+import { browser } from '@wdio/globals';
 
 export class UserSession implements IUserSession {
     public id: string;
@@ -17,6 +17,7 @@ export class UserSession implements IUserSession {
             viewport: options.viewport || { width: 1920, height: 1080 }
         };
         this.metadata = {};
+        this.browser = browser;
     }
 
     async initialize(): Promise<void> {

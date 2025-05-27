@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "test": {
+      "port": 3000,
+      "host": "localhost",
+      "baseUrl": "http://localhost:3000",
+      "cursor": {
+        "enabled": true,
+        "url": "ws://localhost:3001",
+        "reconnectInterval": 5000,
+        "maxReconnectAttempts": 5,
+        "heartbeatInterval": 30000,
+        "debug": false
+      },
+      "browser": {
+        "headless": true,
+        "browserName": "chrome",
+        "timeout": 30000,
+        "windowSize": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    }
+  }
+} 

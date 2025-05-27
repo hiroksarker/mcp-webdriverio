@@ -107,7 +107,5 @@ export const config: Options.Testrunner = {
         ui: 'bdd',
         timeout: 60000
     },
-    screenshotPath: './screenshots/',
-    screenshotOnFailure: true,
-    screenshotOnSuccess: false
+    // Screenshot configuration is handled by the visual regression service
 }; 

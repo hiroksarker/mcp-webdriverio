@@ -27,7 +27,8 @@
     "report:generate": "allure generate --clean allure-results",
     "report:open": "allure open allure-report",
     "report:clean": "rimraf allure-results allure-report",
-    "test:report": "npm run test && npm run report:generate && npm run report:open"
+    "test:report": "npm run test && npm run report:generate && npm run report:open",
+    "start:mcp": "NODE_OPTIONS='--loader ts-node/esm' ts-node --esm src/bin/start-server.ts"
   },
   "keywords": [
     "webdriverio",
@@ -50,6 +51,7 @@
   "homepage": "https://github.com/hiroksarker/mcp-webdriverio#readme",
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^4.18.2",
     "uuid": "^9.0.0",
     "webdriverio": "^8.0.0",
@@ -61,7 +63,10 @@
     "@types/chai": "^4.3.4",
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
+    "@types/html2canvas": "^0.5.35",
     "@types/mocha": "^10.0.1",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/pngjs": "^6.0.5",
     "@types/uuid": "^9.0.1",
     "@wdio/allure-reporter": "^9.14.0",
     "@wdio/cli": "^8.0.0",
@@ -72,11 +77,13 @@
     "@wdio/visual-service": "^8.0.2",
     "allure-commandline": "^2.34.0",
     "chai": "^4.3.7",
+    "html2canvas": "^1.4.1",
     "mocha": "^10.2.0",
     "rimraf": "^6.0.1",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.0.4",
+    "wdio-image-comparison-service": "^5.0.3",
     "webdriver-image-comparison": "^9.0.2"
   },
   "engines": {

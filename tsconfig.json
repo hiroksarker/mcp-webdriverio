@@ -1,34 +1,20 @@
 {
     "compilerOptions": {
+        "target": "ES2020",
+        "module": "ES2020",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
         "outDir": "./dist",
         "rootDir": ".",
-        "module": "ESNext",
-        "moduleResolution": "bundler",
-        "target": "ESNext",
-        "esModuleInterop": true,
-        "allowJs": true,
-        "resolveJsonModule": true,
+        "strict": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        "declaration": true,
-        "sourceMap": true,
-        "lib": ["ES2020", "DOM"],
-        "baseUrl": ".",
-        "paths": {
-            "*": ["node_modules/*", "src/*"]
-        },
-        "typeRoots": [
-            "./node_modules/@types",
-            "./src/types"
-        ]
+        "resolveJsonModule": true,
+        "allowImportingTsExtensions": true,
+        "noEmit": true
     },
     "include": [
         "src/**/*",
         "tests/**/*"
-    ],
-    "exclude": ["node_modules", "dist"],
-    "ts-node": {
-        "esm": true,
-        "experimentalSpecifierResolution": "node"
-    }
+    ]
 }

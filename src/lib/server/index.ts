@@ -5,7 +5,7 @@ import { StdioServerTransport } from './transport.js';
 import { registerBrowserTools } from './tools/browser.js';
 import { registerElementTools } from './tools/elements.js';
 import { registerNetworkTools } from './tools/network.js';
-import { Config } from './config.js';
+import { loadConfig, type ServerConfig } from './config.js';
 import { Logger } from './logger.js';
 import { SessionManager } from './session.js';
 
@@ -16,8 +16,8 @@ export const server = new MCPServer({
 });
 
 // Initialize server components
-const config = new Config();
-const logger = new Logger(config.logLevel);
+const config = loadConfig();
+const logger = new Logger();
 const transport = new StdioServerTransport(server, logger);
 const sessionManager = new SessionManager(logger);
 

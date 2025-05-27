@@ -1,48 +1,60 @@
-import { Options } from '@wdio/types';
-import type { LogLevel } from './logger.js';
+import { z } from 'zod';
 
-export interface BrowserConfig {
-    headless?: boolean;
-    arguments?: string[];
-    logLevel?: Options.WebdriverIO['logLevel'];
-}
+// Configuration schema
+const ServerConfigSchema = z.object({
+    port: z.number().default(3000),
+    host: z.string().default('localhost'),
+    baseUrl: z.string().default('http://localhost:3000'),
+    browserOptions: z.object({
+        headless: z.boolean().default(true),
+        browserName: z.enum(['chrome', 'firefox', 'safari']).default('chrome'),
+        timeout: z.number().default(30000)
+    }).default({}),
+    cursor: z.object({
+        enabled: z.boolean().default(true),
+        url: z.string().default('ws://localhost:3001'),
+        reconnectInterval: z.number().default(5000)
+    }).default({})
+});
 
-export interface ServerConfig {
-    version: string;
-    logLevel: LogLevel;
-    browser: BrowserConfig;
-    uploadsDir: string;
-}
+export type ServerConfig = z.infer<typeof ServerConfigSchema>;
 
-export class Config implements ServerConfig {
-    version: string;
-    logLevel: LogLevel;
-    browser: BrowserConfig;
-    uploadsDir: string;
-
-    constructor(config: Partial<ServerConfig> = {}) {
-        // Default configuration
-        this.version = config.version || '1.0.0';
-        this.logLevel = config.logLevel || 'info';
-        this.uploadsDir = config.uploadsDir || 'uploads';
-        
-        // Default browser configuration
-        this.browser = {
-            headless: config.browser?.headless ?? true,
-            arguments: config.browser?.arguments || ['--headless=new'],
-            logLevel: config.browser?.logLevel || 'error'
-        };
+// Default configuration
+export const defaultConfig: ServerConfig = {
+    port: 3000,
+    host: 'localhost',
+    baseUrl: 'http://localhost:3000',
+    browserOptions: {
+        headless: true,
+        browserName: 'chrome',
+        timeout: 30000
+    },
+    cursor: {
+        enabled: true,
+        url: 'ws://localhost:3001',
+        reconnectInterval: 5000
     }
+};
 
-    getBrowserOptions(): Options.WebdriverIO {
-        return {
-            logLevel: this.browser.logLevel,
-            capabilities: {
-                browserName: 'chrome',
-                'goog:chromeOptions': {
-                    args: this.browser.headless ? this.browser.arguments : []
-                }
-            }
-        };
-    }
+// Load configuration from environment variables
+export function loadConfig(): ServerConfig {
+    const config = {
+        port: process.env.MCP_PORT ? parseInt(process.env.MCP_PORT) : defaultConfig.port,
+        host: process.env.MCP_HOST || defaultConfig.host,
+        baseUrl: process.env.MCP_BASE_URL || defaultConfig.baseUrl,
+        browserOptions: {
+            headless: process.env.MCP_BROWSER_HEADLESS === 'true',
+            browserName: process.env.MCP_BROWSER_NAME || defaultConfig.browserOptions.browserName,
+            timeout: process.env.MCP_BROWSER_TIMEOUT ? parseInt(process.env.MCP_BROWSER_TIMEOUT) : defaultConfig.browserOptions.timeout
+        },
+        cursor: {
+            enabled: process.env.MCP_CURSOR_ENABLED === 'true',
+            url: process.env.MCP_CURSOR_URL || defaultConfig.cursor.url,
+            reconnectInterval: process.env.MCP_CURSOR_RECONNECT_INTERVAL ? 
+                parseInt(process.env.MCP_CURSOR_RECONNECT_INTERVAL) : 
+                defaultConfig.cursor.reconnectInterval
+        }
+    };
+
+    return ServerConfigSchema.parse(config);
 } 
